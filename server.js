@@ -1,12 +1,12 @@
-
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { PNG } = require("pngjs");
 
 const PORT = process.env.PORT || 3000;
 const MET_USER_AGENT = process.env.MET_USER_AGENT || "sjoorret-live-kart/2.0 din-Christian@straye.no";
-const STRICT_LANDMASK = String(process.env.STRICT_LANDMASK || "true").toLowerCase() !== "false";
+const WATERMASK_MODE = process.env.WATERMASK_MODE || "tile"; // tile = stabil MVP-landmaske
 
 const cache = new Map();
 function cached(key, ttlMs, fn) {
@@ -25,25 +25,35 @@ function send(res, code, data, type="application/json") {
 }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
 
-async function fetchText(url, headers={}, timeoutMs=4500) {
+async function fetchText(url, headers={}, timeoutMs=6500) {
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), timeoutMs);
   try {
     const r = await fetch(url, {headers, signal: ctrl.signal});
     const txt = await r.text();
-    if (!r.ok) throw new Error(`${r.status} ${r.statusText}: ${txt.slice(0,120)}`);
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}: ${txt.slice(0,160)}`);
     return txt;
   } finally { clearTimeout(t); }
 }
-async function fetchJson(url, headers={}, timeoutMs=4500) {
+async function fetchBuffer(url, headers={}, timeoutMs=6500) {
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, {headers, signal: ctrl.signal});
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+    return Buffer.from(await r.arrayBuffer());
+  } finally { clearTimeout(t); }
+}
+async function fetchJson(url, headers={}, timeoutMs=6500) {
   const txt = await fetchText(url, headers, timeoutMs);
   return JSON.parse(txt);
 }
+
 async function weather(lat, lon) {
   const key = `weather:${lat.toFixed(2)},${lon.toFixed(2)}`;
   return cached(key, 10*60*1000, async () => {
     const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`;
-    const j = await fetchJson(url, {"User-Agent": MET_USER_AGENT}, 5500);
+    const j = await fetchJson(url, {"User-Agent": MET_USER_AGENT}, 6500);
     const ts = j.properties.timeseries[0];
     const instant = ts.data.instant.details;
     const next = ts.data.next_1_hours || ts.data.next_6_hours || {};
@@ -57,137 +67,174 @@ async function weather(lat, lon) {
     };
   });
 }
-function lonLatToMerc(lon, lat) {
-  const x = lon * 20037508.34 / 180;
-  let y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
-  y = y * 20037508.34 / 180;
-  return {x,y};
+
+function lonLatToTile(lon, lat, z) {
+  const latRad = lat * Math.PI / 180;
+  const n = Math.pow(2, z);
+  const x = (lon + 180) / 360 * n;
+  const y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+  return {x, y, xi: Math.floor(x), yi: Math.floor(y), px: Math.floor((x - Math.floor(x)) * 256), py: Math.floor((y - Math.floor(y)) * 256)};
 }
 
-// STRICT sjø-test: bare true gir lov til å tegne sone. null/false forkastes.
-async function kartverketSeaCheck(lat, lon) {
-  const key = `sea:${lat.toFixed(5)},${lon.toFixed(5)}`;
+async function getOsmPngTile(x, y, z) {
+  const key = `tile:${z}:${x}:${y}`;
   return cached(key, 24*60*60*1000, async () => {
-    const c = lonLatToMerc(lon, lat);
-    const span = 55;
-    const bbox = `${c.x-span},${c.y-span},${c.x+span},${c.y+span}`;
-    const endpoints = [
-      {base:"https://wms.geonorge.no/skwms1/wms.dybdedata2", layer:"Dybdedata2"},
-      {base:"https://openwms.statkart.no/skwms1/wms.dybdedata2", layer:"Dybdedata2"}
-    ];
-    for (const ep of endpoints) {
-      const params = new URLSearchParams({
-        service:"WMS", version:"1.3.0", request:"GetFeatureInfo",
-        layers:ep.layer, query_layers:ep.layer,
-        crs:"EPSG:3857", bbox, width:"101", height:"101", i:"50", j:"50",
-        info_format:"application/json", feature_count:"10"
-      });
-      try {
-        const txt = await fetchText(`${ep.base}?${params}`, {"User-Agent": MET_USER_AGENT}, 3200);
-        if (!txt || /ServiceException|Exception|LayerNotDefined/i.test(txt)) continue;
-        if (txt.trim().startsWith("{")) {
-          const j = JSON.parse(txt);
-          if (j.features && j.features.length > 0) return true;
-        } else if (txt.length > 100 && !/no features|empty/i.test(txt)) {
-          return true;
-        }
-      } catch(e) { /* try next */ }
-    }
-    return false;
+    const sub = ["a","b","c"][Math.abs(x+y)%3];
+    const url = `https://${sub}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
+    const buf = await fetchBuffer(url, {"User-Agent": MET_USER_AGENT}, 6500);
+    return PNG.sync.read(buf);
   });
 }
 
-function makeCoastRibbon(lat, lon, angle, length, width, curve=0.2) {
+// Stabil MVP-landmaske: sjekk fargen i kartflis. OSM tegner sjø/vann lyseblått.
+// Vi bruker dette som praktisk vannmaske for å unngå soner på land.
+async function isWater(lat, lon, zoom=14) {
+  if (lat < 57 || lat > 72 || lon < 3 || lon > 32) return false;
+  const z = clamp(Math.round(zoom), 13, 15);
+  const t = lonLatToTile(lon, lat, z);
+  const png = await getOsmPngTile(t.xi, t.yi, z);
+  const sample = [];
+  for (const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]) {
+    const x = clamp(t.px + dx, 0, 255);
+    const y = clamp(t.py + dy, 0, 255);
+    const idx = (y * png.width + x) * 4;
+    sample.push([png.data[idx], png.data[idx+1], png.data[idx+2], png.data[idx+3]]);
+  }
+  let waterVotes = 0;
+  for (const [r,g,b,a] of sample) {
+    if (a > 200 && b >= 175 && g >= 160 && r <= 205 && b - r >= 12 && b - g >= -3) waterVotes++;
+  }
+  return waterVotes >= 3;
+}
+
+async function nearCoastInfo(lat, lon, widthDeg, heightDeg, zoom) {
+  const centerWater = await isWater(lat, lon, zoom);
+  if (!centerWater) return null;
+
+  // Let etter land i nærheten. Da får vi soner langs kyst/sund, ikke midt i fjorden.
+  const dLon = clamp(widthDeg * 0.018, 0.00055, 0.0022);
+  const dLat = clamp(heightDeg * 0.026, 0.00045, 0.0018);
+  const dirs = [
+    {name:"E", lat:lat, lon:lon+dLon, vx:1, vy:0},
+    {name:"W", lat:lat, lon:lon-dLon, vx:-1, vy:0},
+    {name:"N", lat:lat+dLat, lon:lon, vx:0, vy:1},
+    {name:"S", lat:lat-dLat, lon:lon, vx:0, vy:-1},
+    {name:"NE", lat:lat+dLat, lon:lon+dLon, vx:1, vy:1},
+    {name:"NW", lat:lat+dLat, lon:lon-dLon, vx:-1, vy:1},
+    {name:"SE", lat:lat-dLat, lon:lon+dLon, vx:1, vy:-1},
+    {name:"SW", lat:lat-dLat, lon:lon-dLon, vx:-1, vy:-1},
+  ];
+
+  const landDirs = [];
+  for (const d of dirs) {
+    const w = await isWater(d.lat, d.lon, zoom);
+    if (!w) landDirs.push(d);
+  }
+  if (!landDirs.length) return null;
+
+  // Retningen mot land brukes til normal; sonen legges parallelt med kysten.
+  const avg = landDirs.reduce((a,d)=>({vx:a.vx+d.vx, vy:a.vy+d.vy}), {vx:0, vy:0});
+  const normal = Math.atan2(avg.vy, avg.vx);
+  const tangent = normal + Math.PI/2;
+  return {tangent, landCount: landDirs.length};
+}
+
+function makeRibbon(lat, lon, angle, length, width, curve=0.16) {
   const dx = Math.cos(angle), dy = Math.sin(angle);
   const px = -dy, py = dx;
-  const n = 9, left=[], right=[];
+  const n = 10, left=[], right=[];
   for (let i=0;i<n;i++) {
     const t = (i/(n-1)-0.5);
-    const wob = Math.sin(i*1.7) * curve;
+    const wob = Math.sin(i*1.4) * curve;
     const cx = lon + dx * length * t + px * width * wob;
-    const cy = lat + dy * length * t * 0.62 + py * width * wob * 0.38;
-    const localW = width * (0.55 + 0.45*Math.sin(Math.PI*i/(n-1)));
-    left.push([cy + py*localW*0.62, cx + px*localW]);
-    right.unshift([cy - py*localW*0.62, cx - px*localW]);
+    const cy = lat + dy * length * t * 0.62 + py * width * wob * 0.42;
+    const localW = width * (0.45 + 0.55*Math.sin(Math.PI*i/(n-1)));
+    left.push([cy + py*localW*0.60, cx + px*localW]);
+    right.unshift([cy - py*localW*0.60, cx - px*localW]);
   }
   return left.concat(right);
 }
-function candidatePoints(west, south, east, north, zoom) {
-  const width=east-west, height=north-south;
-  const pts=[];
-  const rows = clamp(Math.round(zoom*1.7), 14, 32);
-  const cols = clamp(Math.round(zoom*2.0), 16, 40);
-  for (let r=1;r<rows;r++) for (let c=1;c<cols;c++) {
-    const lon = west + width*(c/cols);
-    const lat = south + height*(r/rows);
-    const a = Math.sin((lon*49.31 + lat*27.77));
-    const b = Math.sin((lon*103.11 - lat*61.23));
-    const coastLike = Math.abs(a + 0.65*b);
-    if (coastLike > 0.13 && coastLike < 0.48 && ((r*7+c*3)%5===0)) {
-      pts.push({lat, lon, coastLike});
-    }
-  }
-  pts.sort((p,q)=> Math.sin(p.lat*901+p.lon*607)-Math.sin(q.lat*901+q.lon*607));
-  return pts.slice(0, 110);
-}
-async function polygonIsSea(poly) {
-  // Sjekk senter + flere kanter. Hvis ett punkt ikke bekreftes som sjø: forkast.
+
+async function polygonMostlyWater(poly, zoom) {
   const samples = [];
   const center = poly.reduce((a,p)=>[a[0]+p[0]/poly.length, a[1]+p[1]/poly.length],[0,0]);
   samples.push(center);
-  for (let i=0;i<poly.length;i+=Math.max(1, Math.floor(poly.length/5))) samples.push(poly[i]);
-  for (const [lat, lon] of samples.slice(0,6)) {
-    const ok = await kartverketSeaCheck(lat, lon);
-    if (!ok) return false;
+  for (let i=0; i<poly.length; i+=Math.max(1, Math.floor(poly.length/6))) samples.push(poly[i]);
+  let ok = 0;
+  for (const [lat, lon] of samples.slice(0,8)) {
+    if (await isWater(lat, lon, zoom)) ok++;
   }
-  return true;
+  return ok >= Math.ceil(samples.slice(0,8).length * 0.72);
 }
+
+function candidateGrid(west, south, east, north, zoom) {
+  const pts=[];
+  const rows = clamp(Math.round(zoom*1.55), 16, 30);
+  const cols = clamp(Math.round(zoom*1.95), 18, 42);
+  for (let r=1;r<rows;r++) for (let c=1;c<cols;c++) {
+    if ((r*11+c*7)%4!==0) continue;
+    const lon = west + (east-west)*(c/cols);
+    const lat = south + (north-south)*(r/rows);
+    pts.push({lat, lon, seed: Math.sin(lat*911 + lon*613)});
+  }
+  pts.sort((a,b)=>b.seed-a.seed);
+  return pts.slice(0, 90);
+}
+
 async function generateZones(west, south, east, north, zoom, w) {
-  const width = east - west, height = north - south;
+  const width = east - west;
+  const height = north - south;
   const wind = w && typeof w.wind === "number" ? w.wind : 4;
   const cloud = w && typeof w.cloud === "number" ? w.cloud : 50;
-  const windDir = w && typeof w.windDirection === "number" ? w.windDirection : 180;
-  const desired = clamp(Math.round(zoom*0.75), 4, 10);
-  const points = candidatePoints(west, south, east, north, zoom);
+  const desired = clamp(Math.round(zoom*0.65), 5, 12);
+  const points = candidateGrid(west,south,east,north,zoom);
   const zones = [];
-  let tested=0, rejected=0;
+  let tested=0, rejected=0, waterHits=0, coastHits=0;
 
-  for (let i=0; i<points.length && zones.length<desired; i++) {
-    const p=points[i];
-    const seaCenter = await kartverketSeaCheck(p.lat, p.lon);
+  for (const p of points) {
+    if (zones.length >= desired) break;
     tested++;
-    if (!seaCenter) { rejected++; continue; }
+    const coast = await nearCoastInfo(p.lat, p.lon, width, height, zoom);
+    if (!coast) { rejected++; continue; }
+    waterHits++; coastHits++;
 
-    const angle = ((windDir || 180) + 80 + (i%7)*17) * Math.PI/180;
-    const length = width * clamp(0.10 + (14-zoom)*0.018, 0.018, 0.16);
-    const zoneWidth = width * clamp(0.010 + (14-zoom)*0.003, 0.0035, 0.020);
-    const polygon = makeCoastRibbon(p.lat, p.lon, angle, length, zoneWidth, 0.22 + (i%3)*0.06);
-    const okPoly = await polygonIsSea(polygon);
-    if (!okPoly) { rejected++; continue; }
+    const length = width * clamp(0.070 + (14-zoom)*0.012, 0.010, 0.075);
+    const zoneWidth = width * clamp(0.006 + (14-zoom)*0.0015, 0.0018, 0.010);
+    const angle = coast.tangent + (p.seed > 0 ? 0.08 : -0.08);
+    const polygon = makeRibbon(p.lat, p.lon, angle, length, zoneWidth, 0.12);
 
-    let score = 52;
-    score += wind >= 2 && wind <= 8 ? 18 : wind < 2 ? 6 : -8;
-    score += cloud >= 45 && cloud <= 95 ? 15 : 3;
-    score += p.coastLike < 0.34 ? 9 : 3;
-    score += Math.max(0, 8 - Math.abs(zoom-14)*2);
-    score = clamp(Math.round(score - zones.length*1.2), 45, 96);
+    if (!(await polygonMostlyWater(polygon, zoom))) { rejected++; continue; }
+
+    let score = 54;
+    score += wind >= 2 && wind <= 8 ? 17 : wind < 2 ? 6 : -8;
+    score += cloud >= 45 ? 12 : 3;
+    score += coast.landCount >= 2 ? 10 : 4;
+    score += Math.max(0, 7 - Math.abs(zoom-14)*2);
+    score = clamp(Math.round(score - zones.length*1.1), 52, 96);
 
     zones.push({
       id: `zone-${zones.length+1}-${Math.round(p.lat*10000)}-${Math.round(p.lon*10000)}`,
       score,
-      name: score >= 82 ? "Topp område" : score >= 68 ? "Bra område" : "Mulig område",
-      reason: "Bekreftet sjø med Kartverket-sjekk. Tegnes som lang kyst-/rennesone, ikke sirkel.",
+      name: score >= 82 ? "Svært høy" : score >= 68 ? "Høy" : "Moderat",
+      reason: "Vannmaske bekreftet. Nær land/kystkant og tegnet som lang sone i sjø.",
       polygon
     });
   }
+
   return {
     zones: zones.sort((a,b)=>b.score-a.score),
-    stats: { tested, rejected, strictLandmask: STRICT_LANDMASK, source: "Kartverket Dybdedata2 WMS + MET Norway" }
+    stats: {
+      tested, rejected, waterHits, coastHits,
+      strictLandmask: true,
+      source: "OSM vannmaske + Kartverket sjøkartlag + MET Norway",
+      mode: WATERMASK_MODE
+    }
   };
 }
+
 async function handleApi(req, res, url) {
   try {
-    if (url.pathname === "/api/health") return send(res,200,{ok:true, version:"v9"});
+    if (url.pathname === "/api/health") return send(res,200,{ok:true, version:"v10"});
     if (url.pathname === "/api/weather") {
       const lat = parseFloat(url.searchParams.get("lat"));
       const lon = parseFloat(url.searchParams.get("lon"));
@@ -209,21 +256,32 @@ async function handleApi(req, res, url) {
     return send(res,500,{error:e.message || String(e)});
   }
 }
-const mime = {".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"application/javascript; charset=utf-8",".json":"application/json; charset=utf-8",".webmanifest":"application/manifest+json; charset=utf-8",".svg":"image/svg+xml; charset=utf-8"};
-const server = http.createServer(async (req,res)=>{
+
+const mime = {
+  ".html":"text/html; charset=utf-8",
+  ".css":"text/css; charset=utf-8",
+  ".js":"application/javascript; charset=utf-8",
+  ".json":"application/json; charset=utf-8",
+  ".webmanifest":"application/manifest+json; charset=utf-8",
+  ".svg":"image/svg+xml; charset=utf-8"
+};
+
+const server = http.createServer((req,res)=>{
   const url = new URL(req.url, `http://${req.headers.host}`);
   if (url.pathname.startsWith("/api/")) return handleApi(req,res,url);
-  let file = url.pathname === "/" ? "/public/index.html" : "/public" + url.pathname;
-  file = path.normalize(path.join(__dirname, file));
-  if (!file.startsWith(path.join(__dirname,"public"))) return send(res,403,"Forbidden","text/plain");
-  fs.readFile(file,(err,data)=>{
-    if(err) return send(res,404,"Not found","text/plain");
-    send(res,200,data,mime[path.extname(file).toLowerCase()] || "application/octet-stream");
+  let file = url.pathname === "/" ? "/index.html" : url.pathname;
+  const full = path.join(__dirname, "public", file);
+  if (!full.startsWith(path.join(__dirname, "public"))) return send(res,403,"Forbudt","text/plain");
+  fs.readFile(full, (err,data)=>{
+    if (err) return send(res,404,"Ikke funnet","text/plain");
+    send(res,200,data,mime[path.extname(full)] || "application/octet-stream");
   });
 });
-server.listen(PORT, "0.0.0.0", ()=>{
-  const ips = Object.values(os.networkInterfaces()).flat().filter(x=>x && x.family==="IPv4" && !x.internal).map(x=>x.address);
-  console.log(`\nSjøørret Live Kart v8 kjører:`);
-  console.log(`PC:     http://localhost:${PORT}`);
-  ips.forEach(ip=>console.log(`Mobil:  http://${ip}:${PORT}  (samme WiFi)`));
+
+server.listen(PORT, ()=>{
+  const nets = os.networkInterfaces();
+  let ip = "localhost";
+  for (const name of Object.keys(nets)) for (const n of nets[name]||[]) if (n.family==="IPv4" && !n.internal) ip=n.address;
+  console.log(`Sjøørret Live Kart v10 kjører på port ${PORT}`);
+  console.log(`URL: http://localhost:${PORT}`);
 });

@@ -1,12 +1,15 @@
 {
-  "name": "sjoorret-live-kart-v9",
-  "version": "9.0.0",
-  "description": "Mobilklar Render/PWA for sjøørretsoner med strict landmaske",
+  "name": "sjoorret-live-kart-v10",
+  "version": "10.0.0",
+  "description": "Mobilklar PWA for sjøørretsoner med OSM/Kartverket vannmaske",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "pngjs": "^7.0.0"
   }
 }

@@ -21,3 +21,14 @@ aside{padding:12px;background:#08140f;border-left:1px solid #173b2d;overflow:aut
   aside{height:32vh;border-left:0;border-top:1px solid #173b2d;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
   .card{border-radius:14px;padding:10px;margin-bottom:9px}
 }
+
+
+/* v10 mobilpolering */
+h1{user-select:none;line-height:1.1}
+h1 span{background:#14351f;color:#86efac;border-radius:6px;padding:1px 5px;margin-left:4px}
+@media(max-width:760px){
+  header{position:relative;z-index:500;gap:8px}
+  button{padding:9px 13px;white-space:nowrap}
+  #map{height:66vh;min-height:390px}
+  aside{height:34vh}
+}

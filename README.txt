@@ -1,11 +1,12 @@
-Sjøørret Live Kart v9
+Sjøørret Live Kart v10
 
-Dette er en mobilklar PWA/webapp for Render.
+Endring:
+- Fikser 0 soner-problemet.
+- Erstatter for streng Kartverket GetFeatureInfo-punkt-test med praktisk vannmaske fra kartfliser.
+- Soner lages bare der vannmasken viser vann og land finnes i nærheten.
+- Lange soner, ikke runde sirkler.
+- Mobil/PWA-klar for Render.
 
-Anbefalt bruk:
-1. Deploy til Render
-2. Åpne Render-URL på Samsung
-3. Legg til på hjemskjerm
-
-Lokal kjøring krever Node.js. Siden Node mangler på PC-en din, bruk Render-veien.
-Se DEPLOY-RENDER.txt.
+Deploy på Render:
+Build Command: npm install
+Start Command: node server.js
