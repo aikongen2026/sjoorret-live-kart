@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07140f">
+  <title>Sjøørret Live Kart v9</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Sjøørret Live Kart <span>v9</span></h1>
+      <p id="status">Flytt kartet – soner oppdateres automatisk.</p>
+    </div>
+    <button id="locate">Finn meg</button>
+  </header>
+  <main>
+    <section id="map"></section>
+    <aside>
+      <div class="card good">
+        <b>Landmaske</b>
+        <span id="mask">Strict: ingen sone uten sjø-bekreftelse</span>
+      </div>
+      <div class="card">
+        <b>Vær nå</b>
+        <div id="weather">Laster …</div>
+      </div>
+      <div class="card">
+        <b>Anbefalte soner</b>
+        <div id="zones">Flytt/zoom kartet.</div>
+      </div>
+      <div class="card small">
+        Tips på Samsung: åpne Render/PC-lenken i Chrome → meny ⋮ → «Legg til på startskjerm».
+      </div>
+    </aside>
+  </main>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

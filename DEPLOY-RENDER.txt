@@ -1,0 +1,45 @@
+Sjøørret Live Kart v9 – Render-oppsett uten Node på PC
+
+Du har ikke Node.js installert lokalt. Det er helt greit.
+Bruk Render, så kjører appen i skyen og virker på Samsung-telefonen.
+
+STEG 1
+Gå til:
+https://dashboard.render.com/
+
+STEG 2
+Trykk New +, velg Web Service.
+
+STEG 3
+Hvis Render spør etter GitHub:
+Velg Deploy from existing repository hvis du har GitHub.
+Hvis du ikke har GitHub, velg Manual Deploy / Upload hvis tilgjengelig på kontoen din.
+Alternativt kan du bruke Render Blueprint hvis du laster opp prosjektet til GitHub senere.
+
+STEG 4
+Innstillinger:
+Name: sjoorret-live-kart
+Runtime: Node
+Build Command: la stå tom
+Start Command: node server.js
+Plan: Free
+
+STEG 5
+Environment Variables:
+MET_USER_AGENT = sjoorret-live-kart/2.0 din-Christian@straye.no
+STRICT_LANDMASK = true
+NODE_VERSION = 20
+
+STEG 6
+Trykk Deploy.
+
+STEG 7
+Når den er ferdig, åpne Render-URL-en på Samsung.
+Eksempel:
+https://sjoorret-live-kart.onrender.com
+
+På Samsung:
+Åpne siden i Chrome > meny med tre prikker > Legg til på startskjerm.
+
+VIKTIG:
+Ikke send Render API-nøkler i chat. Roter/slett nøkkelen som ble delt tidligere.

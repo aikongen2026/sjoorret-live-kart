@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: sjoorret-live-kart
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: "node server.js"
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: MET_USER_AGENT
+        value: "sjoorret-live-kart/2.0 din-Christian@straye.no"
+      - key: STRICT_LANDMASK
+        value: "true"

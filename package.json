@@ -1,0 +1,12 @@
+{
+  "name": "sjoorret-live-kart-v9",
+  "version": "9.0.0",
+  "description": "Mobilklar Render/PWA for sjøørretsoner med strict landmaske",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
