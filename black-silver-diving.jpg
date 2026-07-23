@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#061713">
+  <meta name="description" content="Sjøørret Live Kart v11 analyserer kyst, vind og vær for å foreslå fiskesoner.">
+  <title>Sjøørret Live Kart v11</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/style.css?v=11.8">
+</head>
+<body>
+<a class="skip" href="#results">Hopp til resultater</a>
+<div class="app" id="appState" data-state="loading">
+  <header>
+    <div class="brand"><span class="eyebrow">Kystanalyse · MET Norway · Kartverket</span><h1>Sjøørret Live Kart <span>v11</span></h1><p id="status" role="status" aria-live="polite">Starter analysen …</p></div>
+    <div class="actions"><button id="retry" class="secondary" hidden>Prøv igjen</button><button id="locate">◎ Finn meg</button></div>
+  </header>
+  <main>
+    <section class="map-wrap" aria-label="Kart over anbefalte sjøørretsoner"><div id="map"></div><div class="legend"><span><i class="best"></i> svært høy</span><span><i class="high"></i> høy</span><span><i class="moderate"></i> moderat</span></div></section>
+    <aside id="results">
+      <section class="card mask-card"><div><span class="card-label">Vannmaske</span><b id="mask">Kontrollerer sjø og kyst …</b></div><span class="pulse" aria-hidden="true"></span></section>
+      <p id="warnings" class="warning" aria-live="polite"></p>
+      <section class="card"><div class="card-head"><div><span class="card-label">Forhold nå</span><h2>Vær ved kartets sentrum</h2></div><span class="source-dot">Live</span></div><div id="weatherGrid" class="weather-grid"><p class="muted span-all">Laster vær …</p></div></section>
+      <section class="card zones-card"><div class="card-head"><div><span class="card-label">Rangert etter forhold</span><h2>Anbefalte soner og sluk</h2></div><span class="info" title="Scoren kombinerer vind, skydekke, kystkvalitet, eksponering, temperaturtrend og tidspunkt.">i</span></div><div class="zone-columns" aria-hidden="true"><span>Område og forhold</span><span>Anbefalt sluk</span><span>Score</span></div><div id="zones" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div></div></section>
+      <section class="card tip"><b>Tips på mobil</b><span>Åpne i Chrome → meny ⋮ → «Legg til på startskjerm». Appskallet kan åpnes offline; nye analyser krever nett.</span></section>
+    </aside>
+  </main>
+  <footer>Veiledende analyse – kontroller alltid lokale regler, vær og sikkerhet før fiske.</footer>
+</div>
+<noscript>Appen krever JavaScript for kart og analyse.</noscript>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/app.js?v=11.5"></script>
+</body>
+</html>

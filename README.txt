@@ -1,10 +1,12 @@
-SJØØRRET LIVE KART v11
-
-1. Installer Node.js 20 eller nyere.
-2. Kjør: npm install
-3. Kjør tester: npm test
-4. Start: npm start
-5. Åpne: http://localhost:3000
-
-På mobil: åpne adressen i Chrome og velg «Legg til på startskjerm».
-Nye analyser krever nettforbindelse. Appskallet kan åpnes offline etter første besøk.
+{
+  "name": "sjoorret-live-kart-v11",
+  "version": "11.0.0",
+  "description": "Mobilklar PWA for forklarbare sjøørretsoner basert på kyst, vær og vannmaske",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "pngjs": "^7.0.0" }
+}
