@@ -38,7 +38,9 @@ function breakdownHtml(breakdown={}) {
   return Object.entries(breakdown).map(([key,value]) => `<span class="factor">${labels[key] || key}: <b>+${value}</b></span>`).join('');
 }
 function lureHtml(lure={}) {
-  return `<div class="lure-cell"><span class="lure-label">Anbefalt sluk</span><b>${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><span class="lure-color">◉ ${lure.color || 'Sølv/blå'}</span><small>${lure.reason || 'Tilpass innsveivingen etter forholdene.'}</small></div>`;
+  const wobbler = lure.wobbler || {};
+  const depth = lure.depth || {};
+  return `<div class="lure-cell"><div class="lure-main"><img class="lure-photo" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="Eksempel på ${lure.color || 'sølv/blå sluk'}" loading="lazy"><div><span class="lure-label">Anbefalt sluk</span><b>${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><span class="lure-color">◉ ${lure.color || 'Sølv/blå'}</span><span class="depth-note">Dybde: ${depth.label || 'ukjent'}</span></div></div><small>${lure.reason || 'Tilpass innsveivingen etter forholdene.'}</small><div class="wobbler-rec"><img class="lure-thumb" src="${wobbler.image || '/lures/blue-silver-shallow.jpg'}" alt="Eksempel på ${wobbler.color || 'sølv/blå vobbler'}" loading="lazy"><div><span>Effektiv vobbler</span><b>${wobbler.type || 'Gruntgående minnowvobbler'} · ${wobbler.size || '8–11 cm'}</b><small>${wobbler.color || 'Sølv/blå med mørk rygg'}</small></div></div></div>`;
 }
 function renderZones(zones) {
   zoneLayer.clearLayers();
@@ -48,7 +50,7 @@ function renderZones(zones) {
   }
   $('zones').innerHTML = zones.map((zone,index) => `<article class="zone-row" tabindex="0" data-zone="${zone.id}"><div class="zone-rank">${index+1}</div><div class="zone-copy"><div class="zone-title"><b>${zone.name}</b></div><p>${zone.reason}</p><div class="factors">${breakdownHtml(zone.breakdown)}</div></div>${lureHtml(zone.lure)}<div class="score" data-score="${zone.score}" aria-label="Score ${zone.score} av 100" style="--score:${zone.score};--score-color:${scoreColor(zone.score)}"></div></article>`).join('');
   zones.forEach(zone => {
-    const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 }).bindPopup(`<b>${zone.name}</b><br>Score ${zone.score}/100<br>${zone.reason}<hr><b>Anbefalt sluk:</b><br>${zone.lure?.type || 'Smal kystsluk'} · ${zone.lure?.weight || '18–22 g'}<br>${zone.lure?.color || 'Sølv/blå'}`);
+    const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 }).bindPopup(`<b>${zone.name}</b><br>Score ${zone.score}/100<br>${zone.reason}<hr><div class="popup-tackle"><img class="popup-lure-thumb" src="${zone.lure?.image || '/lures/spoon-blue-silver.jpg'}" alt="Anbefalt sluk"><div><b>Anbefalt sluk:</b><br>${zone.lure?.type || 'Smal kystsluk'} · ${zone.lure?.weight || '18–22 g'}<br>${zone.lure?.color || 'Sølv/blå'}<br><span>Dybde: ${zone.lure?.depth?.label || 'ukjent'}</span></div></div><div class="popup-tackle"><img class="popup-lure-thumb" src="${zone.lure?.wobbler?.image || '/lures/blue-silver-shallow.jpg'}" alt="Effektiv vobbler"><div><b>Effektiv vobbler:</b><br>${zone.lure?.wobbler?.type || 'Gruntgående minnowvobbler'} · ${zone.lure?.wobbler?.size || '8–11 cm'}<br>${zone.lure?.wobbler?.color || 'Sølv/blå'}</div></div>`);
     layer.addTo(zoneLayer);
     const row = document.querySelector(`[data-zone="${zone.id}"]`);
     row?.addEventListener('click', () => { map.fitBounds(layer.getBounds(), { maxZoom: 16, padding:[30,30] }); layer.openPopup(); });
@@ -85,5 +87,5 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=11.3', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=11.5', { updateViaCache: 'none' }).catch(() => {}));
 loadZones({immediate:true});

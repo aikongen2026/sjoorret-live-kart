@@ -1,5 +1,5 @@
-const CACHE = 'sjoorret-v11-shell-7';
-const SHELL = ['/', '/index.html', '/style.css?v=11.5', '/app.js?v=11.3', '/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'sjoorret-v11-shell-10';
+const SHELL = ['/', '/index.html', '/style.css?v=11.8', '/app.js?v=11.5', '/manifest.webmanifest', '/icon.svg', '/lures/spoon-light-silver.jpg', '/lures/spoon-warm-copper.jpg', '/lures/spoon-blue-silver.jpg', '/lures/spoon-compact-spotted.jpg', '/lures/blue-silver-shallow.jpg', '/lures/black-silver-diving.jpg', '/lures/gold-orange-lowlight.jpg', '/lures/trout-natural.jpg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });

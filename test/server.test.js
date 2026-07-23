@@ -107,7 +107,7 @@ test('recommendLure chooses a visible warm lure for low light in sheltered water
 });
 
 test('recommendLure chooses a long-casting natural lure for bright exposed coast', () => {
-  const lure = app.recommendLure({ hour: 13, cloud: 10, wind: 7, temp: 14, tempTrend: 0.2, exposure: 0.9, coastQuality: 0.9, lat: 58.5, lon: 8.8 });
+  const lure = app.recommendLure({ hour: 13, cloud: 10, wind: 7, temp: 14, tempTrend: 0.2, exposure: 0.9, coastQuality: 0.9, depthMeters: 18, lat: 58.5, lon: 8.8 });
   assert.match(lure.type, /langtkastende|kompakt/i);
   assert.match(lure.color, /sølv.*blå|blå.*sølv/i);
   assert.match(lure.weight, /2[02468].*g|20–28 g/);
@@ -116,8 +116,9 @@ test('recommendLure chooses a long-casting natural lure for bright exposed coast
 
 test('recommendLure always returns the complete UI contract', () => {
   const lure = app.recommendLure({ hour: 12, cloud: 85, wind: 4, temp: 7, tempTrend: -1, exposure: 0.6, coastQuality: 0.8, lat: 63, lon: 9 });
-  assert.deepEqual(Object.keys(lure).sort(), ['color','reason','type','weight'].sort());
-  for (const value of Object.values(lure)) assert.equal(typeof value, 'string');
+  assert.deepEqual(Object.keys(lure).sort(), ['color','depth','image','reason','type','weight','wobbler'].sort());
+  for (const key of ['color','reason','type','weight']) assert.equal(typeof lure[key], 'string');
+  assert.equal(typeof lure.wobbler, 'object');
 });
 
 test('the results UI contains a dedicated recommended lure column', () => {
@@ -140,4 +141,81 @@ test('mobile zone cards keep score beside the zone and lure on the next row', ()
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8');
   assert.match(css, /\.score\{grid-column:3;grid-row:1\}/);
   assert.match(css, /\.lure-cell\{grid-column:2\/4;grid-row:2\}/);
+});
+
+test('recommendLure includes a complete effective wobbler recommendation', () => {
+  const lure = app.recommendLure({ hour: 13, cloud: 10, wind: 7, temp: 14, exposure: 0.9, lat: 59, lon: 10 });
+  assert.deepEqual(Object.keys(lure.wobbler).sort(), ['color','image','size','type'].sort());
+  assert.match(lure.wobbler.type, /vobbler|minnow/i);
+  assert.match(lure.wobbler.size, /cm/);
+  assert.match(lure.wobbler.image, /^\/lures\/.+\.jpg$/);
+});
+
+test('low light and bright daylight choose different wobbler patterns', () => {
+  const low = app.recommendLure({ hour: 5, cloud: 80, wind: 2, temp: 10, exposure: 0.2 });
+  const bright = app.recommendLure({ hour: 13, cloud: 5, wind: 4, temp: 13, exposure: 0.5 });
+  assert.notEqual(low.wobbler.image, bright.wobbler.image);
+  assert.match(low.wobbler.color, /gull|oransje|rosa|kobber/i);
+  assert.match(bright.wobbler.color, /sølv|blå/i);
+});
+
+test('wobbler thumbnails exist and are rendered in the recommendation card', () => {
+  const root = path.join(__dirname, '..', 'public');
+  const js = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  assert.match(js, /lure\.wobbler/);
+  assert.match(js, /lure-thumb/);
+  assert.match(css, /\.wobbler-rec/);
+  assert.match(css, /\.lure-thumb/);
+  assert.match(css, /\.lure-label\{display:block/);
+  assert.match(css, /object-fit:contain/);
+  for (const name of ['blue-silver-shallow.jpg','black-silver-diving.jpg','gold-orange-lowlight.jpg','trout-natural.jpg']) {
+    assert.ok(fs.existsSync(path.join(root, 'lures', name)), `${name} is missing`);
+  }
+});
+
+test('parseDepthFeatureInfo returns a bounded EMODnet depth estimate', () => {
+  const parsed = app.parseDepthFeatureInfo({ features: [{ properties: { Depth: 2.37 } }] });
+  assert.equal(parsed.meters, 2.4);
+  assert.equal(parsed.category, 'very-shallow');
+  assert.equal(parsed.estimated, true);
+  assert.equal(app.parseDepthFeatureInfo({ features: [] }), null);
+});
+
+test('very shallow water overrides wind and chooses light shallow-running tackle', () => {
+  const lure = app.recommendLure({ hour: 13, cloud: 20, wind: 8, exposure: 0.95, depthMeters: 1.8, coastQuality: 0.9 });
+  assert.match(lure.type, /lett|grunt/i);
+  assert.equal(lure.weight, '7–12 g');
+  assert.match(lure.reason, /1,8 m|grunt/i);
+  assert.match(lure.image, /^\/lures\/.+\.jpg$/);
+  assert.match(lure.wobbler.type, /gruntgående|flytende/i);
+  assert.equal(lure.wobbler.size, '6–9 cm');
+  assert.equal(lure.depth.meters, 1.8);
+  assert.match(lure.depth.label, /1,8 m/);
+});
+
+test('deep exposed water can still choose a compact long-casting lure', () => {
+  const lure = app.recommendLure({ hour: 13, cloud: 15, wind: 8, exposure: 0.9, depthMeters: 18, coastQuality: 0.4 });
+  assert.match(lure.type, /langtkastende/i);
+  assert.equal(lure.weight, '22–28 g');
+  assert.match(lure.reason, /18,0 m/);
+});
+
+test('a shallow 4.2 meter zone never receives a 22–28 g lure', () => {
+  const lure = app.recommendLure({ hour: 13, cloud: 20, wind: 8, exposure: 0.95, depthMeters: 4.2, coastQuality: 0.6 });
+  assert.equal(lure.weight, '7–12 g');
+  assert.equal(lure.depth.conservativeShallow, true);
+});
+
+test('lure photos are rendered in zone cards and map popups', () => {
+  const root = path.join(__dirname, '..', 'public');
+  const js = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  assert.match(js, /lure\.image/);
+  assert.match(js, /popup-lure-thumb/);
+  assert.match(css, /\.lure-photo/);
+  assert.match(css, /\.popup-lure-thumb/);
+  for (const name of ['spoon-light-silver.jpg','spoon-warm-copper.jpg','spoon-blue-silver.jpg','spoon-compact-spotted.jpg']) {
+    assert.ok(fs.existsSync(path.join(root, 'lures', name)), `${name} is missing`);
+  }
 });
