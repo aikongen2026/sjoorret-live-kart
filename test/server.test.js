@@ -93,6 +93,12 @@ test('map invalidates Leaflet size when the responsive container changes', () =>
   assert.match(appJs, /invalidateSize/);
 });
 
+test('passive map resize cannot trigger a repeating zone reload', () => {
+  const appJs = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.doesNotMatch(appJs, /map\.on\(['"]moveend/);
+  assert.match(appJs, /map\.on\(['"]dragend zoomend['"]/);
+});
+
 test('mobile map controls meet the 44px touch target', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8');
   assert.match(css, /leaflet-control-zoom a[^}]*44px/s);
