@@ -1,51 +1,86 @@
-const map = L.map("map", { zoomControl: true }).setView([59.05, 10.05], 12);
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(map);
-L.tileLayer("https://opencache.statkart.no/gatekeeper/gk/gk.open_gmaps?layers=sjokartraster&zoom={z}&x={x}&y={y}", { opacity:.58, maxZoom:18, attribution:"Kartverket" }).addTo(map);
+const map = L.map('map', { zoomControl: true }).setView([59.05, 10.05], 12);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+L.tileLayer('https://opencache.statkart.no/gatekeeper/gk/gk.open_gmaps?layers=sjokartraster&zoom={z}&x={x}&y={y}', { opacity: .56, maxZoom: 18, attribution: 'Kartverket' }).addTo(map);
 
-let zoneLayer = L.layerGroup().addTo(map);
-let timer = null;
 const $ = id => document.getElementById(id);
-function color(score){ return score >= 82 ? "#22c55e" : score >= 68 ? "#a3e635" : "#facc15"; }
+const zoneLayer = L.layerGroup().addTo(map);
+const mapContainerObserver = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+mapContainerObserver.observe(document.querySelector('.map-wrap'));
+window.addEventListener('load', () => setTimeout(() => map.invalidateSize({ pan: false }), 0));
+let timer;
+let controller;
+let locationMarker;
+const labels = { vind:'Vind', skydekke:'Skydekke', kyst:'Kyst', eksponering:'Eksponering', temperatur:'Temperatur', tidspunkt:'Tidspunkt' };
 
-async function loadZones(){
-  clearTimeout(timer);
-  timer = setTimeout(async ()=>{
-    const b = map.getBounds();
-    const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(",");
-    $("status").textContent = "Analyserer kyst og vannmaske …";
-    try{
-      const r = await fetch(`/api/zones?bbox=${bbox}&zoom=${map.getZoom()}&t=${Date.now()}`, {cache:"no-store"});
-      const data = await r.json();
-      if(!r.ok) throw new Error(data.error || "API-feil");
-      zoneLayer.clearLayers();
-      if(data.weather){
-        $("weather").innerHTML = `Vind:<br><b>${data.weather.wind ?? "?"} m/s</b><br><br>Skydekke:<br><b>${data.weather.cloud ?? "?"}%</b><br><br>Temp:<br><b>${data.weather.temp ?? "?"}°C</b>`;
-      }
-      const zones = data.zones || [];
-      $("mask").textContent = `Aktiv. Testet ${data.stats?.tested ?? 0}, forkastet ${data.stats?.rejected ?? 0}.`;
-      if(!zones.length){
-        $("zones").innerHTML = `<span class="muted">Fant ingen soner i dette utsnittet. Zoom litt nærmere kysten eller flytt kartet.</span>`;
-      } else {
-        $("zones").innerHTML = zones.map((z,i)=>`<div class="zone-row"><div><b>${i+1}. ${z.name}</b><div class="muted">${z.reason}</div></div><div class="score">${z.score}</div></div>`).join("");
-        zones.forEach(z=>{
-          L.polygon(z.polygon, {
-            color: color(z.score), weight:2, fillColor: color(z.score), fillOpacity:.34, opacity:.95
-          }).bindPopup(`<b>${z.name}</b><br>Score ${z.score}/100<br>${z.reason}`).addTo(zoneLayer);
-        });
-      }
-      $("status").textContent = `Oppdatert ${new Date().toLocaleTimeString("no-NO")} – ${zones.length} soner.`;
-    } catch(e){
-      $("status").textContent = "Feil: " + e.message;
-      $("zones").innerHTML = `<span class="muted">${e.message}</span>`;
-    }
-  }, 650);
+function scoreColor(score) { return score >= 82 ? '#38d477' : score >= 68 ? '#b8df45' : '#f2c94c'; }
+function setState(state, text) {
+  $('appState').dataset.state = state;
+  $('status').textContent = text;
+  $('retry').hidden = state !== 'error';
 }
-map.on("moveend zoomend", loadZones);
-$("locate").onclick = ()=>{
-  map.locate({setView:true, maxZoom:14, enableHighAccuracy:true});
-};
-map.on("locationfound", e => {
-  L.circleMarker(e.latlng,{radius:7, color:"#fff", fillColor:"#22c55e", fillOpacity:1}).addTo(map).bindPopup("Din posisjon").openPopup();
-});
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js?v=10").catch(()=>{});
-loadZones();
+function formatValue(value, suffix='') { return Number.isFinite(value) ? `${value}${suffix}` : '–'; }
+function renderWeather(weather) {
+  if (!weather) {
+    $('weatherGrid').innerHTML = '<p class="muted span-all">Værdata er ikke tilgjengelig akkurat nå.</p>';
+    return;
+  }
+  const trend = Number.isFinite(weather.tempTrend) ? `${weather.tempTrend > 0 ? '+' : ''}${weather.tempTrend}° / 3 t` : '–';
+  $('weatherGrid').innerHTML = [
+    ['Vind', formatValue(weather.wind, ' m/s')],
+    ['Retning', formatValue(Math.round(weather.windDirection), '°')],
+    ['Skydekke', formatValue(Math.round(weather.cloud), '%')],
+    ['Temperatur', formatValue(weather.temp, '°C')],
+    ['Trend', trend],
+    ['Kilde', weather.source || 'MET Norway']
+  ].map(([label,value]) => `<div class="weather-item"><span>${label}</span><strong>${value}</strong></div>`).join('');
+}
+function breakdownHtml(breakdown={}) {
+  return Object.entries(breakdown).map(([key,value]) => `<span class="factor">${labels[key] || key}: <b>+${value}</b></span>`).join('');
+}
+function renderZones(zones) {
+  zoneLayer.clearLayers();
+  if (!zones.length) {
+    $('zones').innerHTML = '<div class="empty"><b>Ingen sikre soner i utsnittet</b><span>Zoom nærmere kysten eller flytt kartet litt.</span></div>';
+    return;
+  }
+  $('zones').innerHTML = zones.map((zone,index) => `<article class="zone-row" tabindex="0" data-zone="${zone.id}"><div class="zone-rank">${index+1}</div><div class="zone-copy"><div class="zone-title"><b>${zone.name}</b><span>Score ${zone.score}/100</span></div><p>${zone.reason}</p><div class="factors">${breakdownHtml(zone.breakdown)}</div></div><div class="score" style="--score:${zone.score};--score-color:${scoreColor(zone.score)}">${zone.score}</div></article>`).join('');
+  zones.forEach(zone => {
+    const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 }).bindPopup(`<b>${zone.name}</b><br>Score ${zone.score}/100<br>${zone.reason}`);
+    layer.addTo(zoneLayer);
+    const row = document.querySelector(`[data-zone="${zone.id}"]`);
+    row?.addEventListener('click', () => { map.fitBounds(layer.getBounds(), { maxZoom: 16, padding:[30,30] }); layer.openPopup(); });
+  });
+}
+async function loadZones({ immediate=false }={}) {
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    controller?.abort(); controller = new AbortController();
+    const bounds = map.getBounds();
+    const bbox = [bounds.getWest(),bounds.getSouth(),bounds.getEast(),bounds.getNorth()].join(',');
+    setState('loading','Analyserer kyst, vind og sjøforhold …');
+    $('zones').setAttribute('aria-busy','true');
+    try {
+      const response = await fetch(`/api/zones?bbox=${encodeURIComponent(bbox)}&zoom=${map.getZoom()}`, { cache:'no-store', signal:controller.signal });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || `API-feil ${response.status}`);
+      renderWeather(data.weather); renderZones(data.zones || []);
+      $('mask').textContent = data.stats?.waterMaskAvailable === false ? 'Vannmasken er midlertidig utilgjengelig.' : `Aktiv · ${data.stats?.tested ?? 0} kandidater kontrollert · ${data.stats?.rejected ?? 0} forkastet`;
+      $('warnings').textContent = (data.warnings || []).join(' ');
+      setState('ready',`Oppdatert ${new Date().toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit'})} · ${(data.zones || []).length} soner`);
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      const offline = !navigator.onLine;
+      setState('error',offline ? 'Du er offline. Kartskallet virker, men nye analyser krever nett.' : `Kunne ikke oppdatere: ${error.message}`);
+      $('zones').innerHTML = `<div class="empty error"><b>${offline ? 'Ingen nettforbindelse' : 'Analysen feilet'}</b><span>Prøv igjen. Eksisterende kart kan fortsatt brukes.</span></div>`;
+    } finally { $('zones').setAttribute('aria-busy','false'); }
+  }, immediate ? 0 : 550);
+}
+map.on('moveend zoomend', () => loadZones());
+$('locate').addEventListener('click', () => { setState('locating','Finner posisjonen din …'); map.locate({ setView:true, maxZoom:14, enableHighAccuracy:true }); });
+$('retry').addEventListener('click', () => loadZones({immediate:true}));
+map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); locationMarker=L.circleMarker(event.latlng,{radius:7,color:'#fff',weight:2,fillColor:'#38d477',fillOpacity:1}).addTo(map).bindPopup('Din posisjon').openPopup(); setState('ready','Posisjon funnet. Oppdaterer soner …'); loadZones({immediate:true}); });
+map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
+window.addEventListener('online', () => loadZones({immediate:true}));
+window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=11.1', { updateViaCache: 'none' }).catch(() => {}));
+loadZones({immediate:true});

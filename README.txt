@@ -1,12 +1,10 @@
-Sjøørret Live Kart v10
+SJØØRRET LIVE KART v11
 
-Endring:
-- Fikser 0 soner-problemet.
-- Erstatter for streng Kartverket GetFeatureInfo-punkt-test med praktisk vannmaske fra kartfliser.
-- Soner lages bare der vannmasken viser vann og land finnes i nærheten.
-- Lange soner, ikke runde sirkler.
-- Mobil/PWA-klar for Render.
+1. Installer Node.js 20 eller nyere.
+2. Kjør: npm install
+3. Kjør tester: npm test
+4. Start: npm start
+5. Åpne: http://localhost:3000
 
-Deploy på Render:
-Build Command: npm install
-Start Command: node server.js
+På mobil: åpne adressen i Chrome og velg «Legg til på startskjerm».
+Nye analyser krever nettforbindelse. Appskallet kan åpnes offline etter første besøk.

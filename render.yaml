@@ -9,6 +9,6 @@ services:
       - key: NODE_VERSION
         value: 20
       - key: MET_USER_AGENT
-        value: "sjoorret-live-kart/2.0 din-Christian@straye.no"
+        value: "sjoorret-live-kart/11 (+https://github.com/aikongen2026/sjoorret-live-kart)"
       - key: WATERMASK_MODE
         value: "tile"
