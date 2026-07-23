@@ -65,6 +65,59 @@ function norwegianHour(date = new Date()) {
   return Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', hour: '2-digit', hourCycle: 'h23' }).format(date));
 }
 
+const lureCatalog = Object.freeze([
+  { id:'a01', name:'Sølvskjell', family:'Smal skjesluk', color:'Sølv med skjellmønster', image:'/lures/user/a01-silver-scale-spoon.jpg', tags:['silver','natural','spoon','slim'] },
+  { id:'a02', name:'Gullstripe', family:'Kompakt kastsluk', color:'Gullstripe over holografisk sølv', image:'/lures/user/a02-gold-stripe-caster.jpg', tags:['warm','silver','casting','compact'] },
+  { id:'a06', name:'Blåprikk', family:'Smal/avlang hardbait', color:'Blå/sølv med sorte prikker', image:'/lures/user/a06-blue-spotted-stickbait.jpg', tags:['blue','silver','contrast','stickbait','casting'] },
+  { id:'a10', name:'Turkis prikk', family:'Kompakt metallagn', color:'Hvit/turkis med sorte prikker', image:'/lures/user/a10-white-turquoise-20g.jpg', tags:['blue','bright','contrast','compact','casting'] },
+  { id:'a11', name:'Sort rygg', family:'Smal skjesluk', color:'Sort rygg over blank sølvside', image:'/lures/user/a11-black-silver-spoon.jpg', tags:['silver','contrast','spoon','slim'] },
+  { id:'a12', name:'Kobberkant', family:'Smal skjesluk', color:'Kobber/rød med mørk kant', image:'/lures/user/a12-copper-red-spoon.jpg', tags:['warm','copper','contrast','spoon','slim'] },
+  { id:'b12', name:'Rosa sølv', family:'Smal skjesluk', color:'Rosa over sølv', image:'/lures/user/b12-pink-silver-slim.jpg', tags:['pink','silver','spoon','slim'] },
+  { id:'b13', name:'Gullskjell', family:'Skjesluk med dressing', color:'Gull/sølv med mørkt skjellmønster', image:'/lures/user/b13-gold-scale-dressed.jpg', tags:['warm','natural','contrast','spoon','compact'] },
+  { id:'c03', name:'Rosa tiger', family:'Mikro metallagn', color:'Rosa/rød med sorte striper', image:'/lures/user/c03-pink-black-bars.jpg', tags:['pink','contrast','micro','slim'] },
+  { id:'c08', name:'Sølvmarkering', family:'Smalt/avlangt hardbait', color:'Sølv/blå med mørke markeringer', image:'/lures/user/c08-silver-dark-bars.jpg', tags:['silver','natural','contrast','pencil','slim'] },
+  { id:'c09', name:'Blårosa', family:'Smalt metallagn', color:'Blå/sølv med rosa buk', image:'/lures/user/c09-blue-pink-slim.jpg', tags:['blue','pink','silver','slim'] },
+  { id:'c10', name:'Kobberprikk', family:'Mikro metallagn', color:'Kobber/gull med mørke prikker', image:'/lures/user/c10-copper-speckled-micro.jpg', tags:['warm','natural','micro','slim'] },
+  { id:'c11', name:'Gullprikk', family:'Smalt/avlangt hardbait', color:'Gull/oliven med mørke prikker', image:'/lures/user/c11-gold-speckled-pencil.jpg', tags:['warm','natural','pencil','casting','slim'] },
+  { id:'c12', name:'Blåstripe', family:'Bred skjesluk', color:'Blåstripet over sølv', image:'/lures/user/c12-blue-striped-spoon.jpg', tags:['blue','silver','spoon','broad','contrast'] },
+  { id:'c13', name:'Sortrosa minnowform', family:'Minnowformet hardbait', color:'Sort rygg med rosa side', image:'/lures/user/c13-black-pink-minnow.jpg', tags:['pink','contrast','minnow'] },
+  { id:'c14', name:'Grønnrosa minnowform', family:'Minnowformet hardbait', color:'Grønn/sølv med rosa stripe', image:'/lures/user/c14-green-silver-pink-minnow.jpg', tags:['natural','silver','pink','minnow'] },
+  { id:'c15', name:'Olivenoransje minnowform', family:'Minnowformet hardbait', color:'Oliven/gull med oransje buk', image:'/lures/user/c15-olive-gold-orange-minnow.jpg', tags:['warm','natural','minnow'] },
+  { id:'c16', name:'Sortsølv minnowform', family:'Minnowformet hardbait', color:'Sort rygg over sølvside', image:'/lures/user/c16-black-silver-minnow.jpg', tags:['silver','natural','contrast','minnow'] }
+]);
+
+function stableLureNumber(text) {
+  let value = 2166136261;
+  for (const char of text) { value ^= char.charCodeAt(0); value = Math.imul(value, 16777619); }
+  return value >>> 0;
+}
+
+function selectPhotographedLures({ hour, cloud, wind, temp, exposure, coastQuality, depthMeters, conservativeShallow, exposed, sheltered }) {
+  const lowLight = hour <= 8 || hour >= 19;
+  const bright = !lowLight && cloud < 35;
+  const overcastOrCold = !lowLight && (cloud >= 70 || temp < 8);
+  const signature = [hour,Math.round(cloud),Math.round(wind*10),Math.round(temp),Math.round(exposure*100),Math.round(coastQuality*100),depthMeters === null ? 'x' : Math.round(depthMeters*10)].join(':');
+  const scored = lureCatalog.map(item => {
+    const has = tag => item.tags.includes(tag);
+    let score = 0;
+    if (lowLight) score += (has('warm') ? 8 : 0) + (has('contrast') ? 5 : 0) + (has('pink') ? 3 : 0) - (has('bright') ? 2 : 0);
+    else if (overcastOrCold) score += (has('warm') ? 6 : 0) + (has('natural') ? 4 : 0) + (has('contrast') ? 2 : 0) + (has('pink') ? 2 : 0);
+    else if (bright) score += (has('silver') ? 7 : 0) + (has('blue') ? 5 : 0) + (has('natural') ? 2 : 0) - (has('warm') ? 2 : 0);
+    else score += (has('silver') ? 4 : 0) + (has('blue') ? 4 : 0) + (has('pink') ? 3 : 0) + (has('natural') ? 2 : 0);
+    if (conservativeShallow) score += (has('slim') ? 4 : 0) + (has('micro') ? 3 : 0) + (has('spoon') ? 2 : 0) - (has('broad') ? 2 : 0);
+    else if (exposed) score += (has('casting') ? 5 : 0) + (has('compact') ? 4 : 0) + (has('pencil') ? 3 : 0) - (has('micro') ? 2 : 0);
+    else if (sheltered) score += (has('spoon') ? 3 : 0) + (has('slim') ? 2 : 0) + (has('natural') ? 2 : 0);
+    if (depthMeters !== null && depthMeters > 12) score += (has('pencil') ? 3 : 0) + (has('minnow') ? 2 : 0) + (has('compact') ? 2 : 0);
+    const tie = (stableLureNumber(`${signature}|${item.id}`) % 300) / 100;
+    return { item, score, tie };
+  }).sort((a,b) => b.score-a.score || b.tie-a.tie || a.item.id.localeCompare(b.item.id));
+  const bestPrimary = scored.find(({item}) => !item.tags.includes('minnow'));
+  const primaryPool = scored.filter(({item,score}) => !item.tags.includes('minnow') && score >= bestPrimary.score - 3);
+  const primary = primaryPool[stableLureNumber(signature) % primaryPool.length].item;
+  const alternatives = scored.filter(({item}) => item.id !== primary.id).sort((a,b) => (b.score+b.tie)-(a.score+a.tie) || a.item.id.localeCompare(b.item.id)).slice(0,2).map(({item}) => item);
+  return [primary, ...alternatives];
+}
+
 function recommendLure(input = {}) {
   const hour = Number.isFinite(input.hour) ? input.hour : norwegianHour();
   const cloud = Number.isFinite(input.cloud) ? input.cloud : 50;
@@ -85,14 +138,7 @@ function recommendLure(input = {}) {
   else if (exposed) { type = 'Langtkastende, kompakt kystsluk'; weight = '22–28 g'; }
   else if (sheltered) { type = 'Saktegående skjesluk eller liten wobbler'; weight = '12–18 g'; }
 
-  let color = 'Sølv/blå med mørk rygg';
-  let image = '/lures/spoon-blue-silver.jpg';
-  if (lowLight) { color = 'Kobber/oransje med sort rygg'; image = '/lures/spoon-warm-copper.jpg'; }
-  else if (temp < 8 || cloud >= 70) { color = 'Kobber/rød eller kobber/grønn'; image = '/lures/spoon-warm-copper.jpg'; }
-  else if (cloud >= 35) { color = 'Sølv/grønn med et lite rødt innslag'; image = '/lures/spoon-light-silver.jpg'; }
-  if (exposed && !conservativeShallow) image = '/lures/spoon-compact-spotted.jpg';
-  if (conservativeShallow && !lowLight) image = '/lures/spoon-light-silver.jpg';
-
+  const [primary, ...alternateItems] = selectPhotographedLures({ hour, cloud, wind, temp, exposure, coastQuality, depthMeters, conservativeShallow, exposed, sheltered });
   const timeReason = lowLight ? (hour <= 8 ? 'morgen og lavt lys' : 'kveld/skumring og lavt lys') : cloud < 25 ? 'klart dagslys' : 'dempet dagslys';
   const placeReason = exposed ? 'åpen og vindutsatt plass' : sheltered ? 'lun plass' : 'middels eksponert kyst';
   const depthReason = noDepth ? `estimert dybde ${noDepth} m` : 'dybdedata utilgjengelig';
@@ -111,7 +157,8 @@ function recommendLure(input = {}) {
     wobbler = { type: 'Gruntgående minnowvobbler', size: '8–11 cm', color: 'Sølv/blå med mørk rygg', image: '/lures/blue-silver-shallow.jpg' };
   }
   const depth = { meters: depthMeters, label: noDepth ? `${noDepth} m estimert${conservativeShallow ? ' · gruntvannsvalg' : ''}` : `Ukjent${conservativeShallow ? ' · konservativt gruntvannsvalg' : ''}`, source: depthMeters === null ? null : 'EMODnet DTM (~125 m oppløsning)', estimated: depthMeters !== null, conservativeShallow };
-  return { type, weight, color, image, reason: `${timeReason}; ${tackleReason}.`, depth, wobbler };
+  const alternatives = alternateItems.map(item => ({ name:item.name, type:item.family, weight, color:item.color, image:item.image, reason:'Alternativt fotoagn for de samme forholdene.' }));
+  return { name:primary.name, type, weight, color:primary.color, image:primary.image, reason: `${timeReason}; ${tackleReason}.`, depth, wobbler, alternatives };
 }
 
 function formatReason({ breakdown = {}, weather = {}, coastQuality = 0.5, exposure = 0.5 } = {}) {
@@ -280,4 +327,4 @@ function createServer() {
 }
 function startServer(port=PORT) { const server=createServer(); return server.listen(port,()=>{ let ip='localhost'; for(const list of Object.values(os.networkInterfaces())) for(const item of list||[]) if(item.family==='IPv4'&&!item.internal) ip=item.address; console.log(`Sjøørret Live Kart v11 kjører på http://${ip}:${port}`); }); }
 if(require.main===module) startServer();
-module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,parseDepthFeatureInfo,depthAtPoint,norwegianHour,createServer,startServer,weather,generateZones};
+module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,createServer,startServer,weather,generateZones};

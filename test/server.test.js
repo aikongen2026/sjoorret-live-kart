@@ -122,9 +122,58 @@ test('recommendLure chooses a long-casting natural lure for bright exposed coast
 
 test('recommendLure always returns the complete UI contract', () => {
   const lure = app.recommendLure({ hour: 12, cloud: 85, wind: 4, temp: 7, tempTrend: -1, exposure: 0.6, coastQuality: 0.8, lat: 63, lon: 9 });
-  assert.deepEqual(Object.keys(lure).sort(), ['color','depth','image','reason','type','weight','wobbler'].sort());
-  for (const key of ['color','reason','type','weight']) assert.equal(typeof lure[key], 'string');
+  assert.deepEqual(Object.keys(lure).sort(), ['alternatives','color','depth','image','name','reason','type','weight','wobbler'].sort());
+  for (const key of ['color','name','reason','type','weight']) assert.equal(typeof lure[key], 'string');
   assert.equal(typeof lure.wobbler, 'object');
+  assert.equal(lure.alternatives.length, 2);
+});
+
+test('the user lure catalog contains 18 distinct photographed lures', () => {
+  assert.equal(app.lureCatalog.length, 18);
+  assert.equal(new Set(app.lureCatalog.map(item => item.id)).size, 18);
+  assert.equal(new Set(app.lureCatalog.map(item => item.image)).size, 18);
+  for (const item of app.lureCatalog) {
+    assert.match(item.image, /^\/lures\/user\/.+\.jpg$/);
+    assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', item.image)));
+    assert.equal(typeof item.name, 'string');
+    assert.equal(typeof item.color, 'string');
+  }
+});
+
+test('recommendLure returns primary plus two unique photographed alternatives', () => {
+  const lure = app.recommendLure({ hour: 22, cloud: 90, wind: 5.8, temp: 17.9, exposure: 0.5, coastQuality: 0.8 });
+  const choices = [lure, ...lure.alternatives];
+  assert.equal(new Set(choices.map(choice => choice.image)).size, 3);
+  for (const choice of choices) {
+    assert.match(choice.image, /^\/lures\/user\/.+\.jpg$/);
+    assert.match(choice.weight, /g/);
+    assert.equal(typeof choice.name, 'string');
+    assert.equal(typeof choice.color, 'string');
+  }
+});
+
+test('representative conditions rotate across at least six photographed primary lures deterministically', () => {
+  const cases = [
+    { hour: 5, cloud: 90, wind: 2, temp: 5, exposure: 0.2, coastQuality: 0.8, depthMeters: 2 },
+    { hour: 7, cloud: 30, wind: 5, temp: 9, exposure: 0.5, coastQuality: 0.6, depthMeters: 8 },
+    { hour: 12, cloud: 5, wind: 2, temp: 15, exposure: 0.2, coastQuality: 0.5, depthMeters: 3 },
+    { hour: 13, cloud: 20, wind: 8, temp: 14, exposure: 0.9, coastQuality: 0.4, depthMeters: 20 },
+    { hour: 14, cloud: 50, wind: 4, temp: 12, exposure: 0.5, coastQuality: 0.6, depthMeters: 10 },
+    { hour: 15, cloud: 85, wind: 3, temp: 6, exposure: 0.3, coastQuality: 0.5, depthMeters: 7 },
+    { hour: 19, cloud: 40, wind: 7, temp: 11, exposure: 0.8, coastQuality: 0.5, depthMeters: 15 },
+    { hour: 23, cloud: 95, wind: 4, temp: 16, exposure: 0.4, coastQuality: 0.8, depthMeters: null }
+  ];
+  const first = cases.map(input => app.recommendLure(input).image);
+  const second = cases.map(input => app.recommendLure(input).image);
+  assert.deepEqual(first, second);
+  assert.ok(new Set(first).size >= 6, `only ${new Set(first).size} primary images: ${first.join(', ')}`);
+});
+
+test('zone cards and map popups render photographed alternative lures', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
+  assert.match(js, /lure\.alternatives/);
+  assert.match(js, /Andre gode valg/i);
+  assert.match(js, /popup-alternatives/);
 });
 
 test('the results UI contains a dedicated recommended lure column', () => {
