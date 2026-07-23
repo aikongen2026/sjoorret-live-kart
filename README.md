@@ -1,6 +1,8 @@
 # Sjøørret Live Kart v11
 
-Mobilklar PWA som foreslår sjøørretsoner langs norskekysten. Analysen kombinerer OSM-vannmaske, kystnærhet, vindstyrke og -retning, skydekke, temperaturtrend og tidspunkt. Hver sone viser score og forklaring.
+Mobilklar PWA som foreslår sjøørretsoner langs norskekysten. Analysen kombinerer OSM-vannmaske, kystnærhet, vindstyrke og -retning, skydekke, temperaturtrend og norsk lokaltid. Hver sone viser score, forklaring og en egen slukanbefaling med type, vekt og farge.
+
+Slukanbefalingen tilpasses lys/tidspunkt, vind, temperatur og om sonen er lun eller eksponert. Den er et veiledende startvalg, ikke en fangstgaranti.
 
 ## Start lokalt
 

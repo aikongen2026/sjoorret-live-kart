@@ -61,6 +61,35 @@ function computeScore(input = {}) {
   return { score: clamp(10 + Object.values(breakdown).reduce((sum, value) => sum + value, 0), 0, 100), breakdown };
 }
 
+function norwegianHour(date = new Date()) {
+  return Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', hour: '2-digit', hourCycle: 'h23' }).format(date));
+}
+
+function recommendLure(input = {}) {
+  const hour = Number.isFinite(input.hour) ? input.hour : norwegianHour();
+  const cloud = Number.isFinite(input.cloud) ? input.cloud : 50;
+  const wind = Number.isFinite(input.wind) ? input.wind : 4;
+  const temp = Number.isFinite(input.temp) ? input.temp : 10;
+  const exposure = clamp(Number.isFinite(input.exposure) ? input.exposure : 0.5, 0, 1);
+  const lowLight = hour <= 8 || hour >= 19;
+  const exposed = exposure >= 0.72 || wind >= 6;
+  const sheltered = exposure <= 0.35 && wind < 4;
+
+  let type = 'Smal kystsluk';
+  let weight = '18–22 g';
+  if (exposed) { type = 'Langtkastende, kompakt kystsluk'; weight = '22–28 g'; }
+  else if (sheltered) { type = 'Saktegående skjesluk eller liten wobbler'; weight = '12–18 g'; }
+
+  let color = 'Sølv/blå med mørk rygg';
+  if (lowLight) color = 'Kobber/oransje med sort rygg';
+  else if (temp < 8 || cloud >= 70) color = 'Kobber/rød eller kobber/grønn';
+  else if (cloud >= 35) color = 'Sølv/grønn med et lite rødt innslag';
+
+  const timeReason = lowLight ? (hour <= 8 ? 'morgen og lavt lys' : 'kveld/skumring og lavt lys') : cloud < 25 ? 'klart dagslys' : 'dempet dagslys';
+  const placeReason = exposed ? 'åpen og vindutsatt plass krever lange, stabile kast' : sheltered ? 'lun plass fiskes roligere og grunnere' : 'middels eksponert kyst';
+  return { type, weight, color, reason: `${timeReason}; ${placeReason}.` };
+}
+
 function formatReason({ breakdown = {}, weather = {}, coastQuality = 0.5, exposure = 0.5 } = {}) {
   const parts = [];
   if (Number.isFinite(weather.wind)) parts.push(`Vind ${weather.wind.toFixed(1)} m/s${Number.isFinite(weather.windDirection) ? ` fra ${Math.round(weather.windDirection)}°` : ''}`);
@@ -177,8 +206,8 @@ async function generateZones({west,south,east,north,zoom}, currentWeather) {
     try {
       const coast=await nearCoastInfo(point.lat,point.lon,width,height,zoom); if(!coast){rejected++;continue;}
       const polygon=makeRibbon(point.lat,point.lon,coast.tangent,width*0.045,width*0.0055); if(!(await polygonMostlyWater(polygon,zoom))){rejected++;continue;}
-      const exposure=windExposure(currentWeather?.windDirection,coast.coastNormal); const scoring=computeScore({...currentWeather,coastQuality:coast.quality,exposure,hour:new Date().getHours()});
-      zones.push({id:`zone-${zones.length+1}-${Math.round(point.lat*10000)}-${Math.round(point.lon*10000)}`,score:scoring.score,name:scoring.score>=82?'Svært høy':scoring.score>=68?'Høy':'Moderat',reason:formatReason({ ...scoring, weather:currentWeather||{}, coastQuality:coast.quality, exposure }),breakdown:scoring.breakdown,polygon});
+      const exposure=windExposure(currentWeather?.windDirection,coast.coastNormal); const hour=norwegianHour(); const scoring=computeScore({...currentWeather,coastQuality:coast.quality,exposure,hour}); const lure=recommendLure({...currentWeather,coastQuality:coast.quality,exposure,hour,lat:point.lat,lon:point.lon});
+      zones.push({id:`zone-${zones.length+1}-${Math.round(point.lat*10000)}-${Math.round(point.lon*10000)}`,score:scoring.score,name:scoring.score>=82?'Svært høy':scoring.score>=68?'Høy':'Moderat',reason:formatReason({ ...scoring, weather:currentWeather||{}, coastQuality:coast.quality, exposure }),breakdown:scoring.breakdown,lure,polygon});
     } catch(error) { maskError=error.message; rejected++; if(tested>12&&!zones.length) break; }
   }
   return {zones:zones.sort((a,b)=>b.score-a.score),stats:{tested,rejected,strictLandmask:true,waterMaskAvailable:!maskError,warning:maskError?'Vannmasken svarte ikke; prøv igjen om litt.':null,source:'OSM vannmaske + Kartverket sjøkart + MET Norway'}};
@@ -202,4 +231,4 @@ function createServer() {
 }
 function startServer(port=PORT) { const server=createServer(); return server.listen(port,()=>{ let ip='localhost'; for(const list of Object.values(os.networkInterfaces())) for(const item of list||[]) if(item.family==='IPv4'&&!item.internal) ip=item.address; console.log(`Sjøørret Live Kart v11 kjører på http://${ip}:${port}`); }); }
 if(require.main===module) startServer();
-module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,createServer,startServer,weather,generateZones};
+module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,norwegianHour,createServer,startServer,weather,generateZones};

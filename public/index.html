@@ -10,7 +10,7 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="/style.css?v=11.2">
+  <link rel="stylesheet" href="/style.css?v=11.5">
 </head>
 <body>
 <a class="skip" href="#results">Hopp til resultater</a>
@@ -25,7 +25,7 @@
       <section class="card mask-card"><div><span class="card-label">Vannmaske</span><b id="mask">Kontrollerer sjø og kyst …</b></div><span class="pulse" aria-hidden="true"></span></section>
       <p id="warnings" class="warning" aria-live="polite"></p>
       <section class="card"><div class="card-head"><div><span class="card-label">Forhold nå</span><h2>Vær ved kartets sentrum</h2></div><span class="source-dot">Live</span></div><div id="weatherGrid" class="weather-grid"><p class="muted span-all">Laster vær …</p></div></section>
-      <section class="card zones-card"><div class="card-head"><div><span class="card-label">Rangert etter forhold</span><h2>Anbefalte soner</h2></div><span class="info" title="Scoren kombinerer vind, skydekke, kystkvalitet, eksponering, temperaturtrend og tidspunkt.">i</span></div><div id="zones" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div></div></section>
+      <section class="card zones-card"><div class="card-head"><div><span class="card-label">Rangert etter forhold</span><h2>Anbefalte soner og sluk</h2></div><span class="info" title="Scoren kombinerer vind, skydekke, kystkvalitet, eksponering, temperaturtrend og tidspunkt.">i</span></div><div class="zone-columns" aria-hidden="true"><span>Område og forhold</span><span>Anbefalt sluk</span><span>Score</span></div><div id="zones" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div></div></section>
       <section class="card tip"><b>Tips på mobil</b><span>Åpne i Chrome → meny ⋮ → «Legg til på startskjerm». Appskallet kan åpnes offline; nye analyser krever nett.</span></section>
     </aside>
   </main>
@@ -33,6 +33,6 @@
 </div>
 <noscript>Appen krever JavaScript for kart og analyse.</noscript>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/app.js?v=11.1"></script>
+<script src="/app.js?v=11.3"></script>
 </body>
 </html>

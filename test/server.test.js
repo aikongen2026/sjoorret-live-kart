@@ -97,3 +97,47 @@ test('mobile map controls meet the 44px touch target', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8');
   assert.match(css, /leaflet-control-zoom a[^}]*44px/s);
 });
+
+test('recommendLure chooses a visible warm lure for low light in sheltered water', () => {
+  const lure = app.recommendLure({ hour: 5, cloud: 75, wind: 2, temp: 11, tempTrend: -0.5, exposure: 0.2, coastQuality: 0.6, lat: 59, lon: 10 });
+  assert.match(lure.type, /skjesluk|wobbler/i);
+  assert.match(lure.color, /kobber|oransje|sort|lilla/i);
+  assert.match(lure.weight, /g/);
+  assert.match(lure.reason, /lavt lys|morgen|skumring|lun/i);
+});
+
+test('recommendLure chooses a long-casting natural lure for bright exposed coast', () => {
+  const lure = app.recommendLure({ hour: 13, cloud: 10, wind: 7, temp: 14, tempTrend: 0.2, exposure: 0.9, coastQuality: 0.9, lat: 58.5, lon: 8.8 });
+  assert.match(lure.type, /langtkastende|kompakt/i);
+  assert.match(lure.color, /sølv.*blå|blå.*sølv/i);
+  assert.match(lure.weight, /2[02468].*g|20–28 g/);
+  assert.match(lure.reason, /åpen|vind|kast/i);
+});
+
+test('recommendLure always returns the complete UI contract', () => {
+  const lure = app.recommendLure({ hour: 12, cloud: 85, wind: 4, temp: 7, tempTrend: -1, exposure: 0.6, coastQuality: 0.8, lat: 63, lon: 9 });
+  assert.deepEqual(Object.keys(lure).sort(), ['color','reason','type','weight'].sort());
+  for (const value of Object.values(lure)) assert.equal(typeof value, 'string');
+});
+
+test('the results UI contains a dedicated recommended lure column', () => {
+  const root = path.join(__dirname, '..', 'public');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const js = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  assert.match(html, /Anbefalt sluk/i);
+  assert.match(js, /zone\.lure/);
+});
+
+test('score rings expose their numeric score in the score column', () => {
+  const root = path.join(__dirname, '..', 'public');
+  const js = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  assert.match(js, /data-score="\$\{zone\.score\}"/);
+  assert.match(css, /content:attr\(data-score\)/);
+});
+
+test('mobile zone cards keep score beside the zone and lure on the next row', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8');
+  assert.match(css, /\.score\{grid-column:3;grid-row:1\}/);
+  assert.match(css, /\.lure-cell\{grid-column:2\/4;grid-row:2\}/);
+});

@@ -1,5 +1,5 @@
-const CACHE = 'sjoorret-v11-shell-4';
-const SHELL = ['/', '/index.html', '/style.css?v=11.2', '/app.js?v=11.1', '/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'sjoorret-v11-shell-7';
+const SHELL = ['/', '/index.html', '/style.css?v=11.5', '/app.js?v=11.3', '/manifest.webmanifest', '/icon.svg'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });

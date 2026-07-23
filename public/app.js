@@ -37,15 +37,18 @@ function renderWeather(weather) {
 function breakdownHtml(breakdown={}) {
   return Object.entries(breakdown).map(([key,value]) => `<span class="factor">${labels[key] || key}: <b>+${value}</b></span>`).join('');
 }
+function lureHtml(lure={}) {
+  return `<div class="lure-cell"><span class="lure-label">Anbefalt sluk</span><b>${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><span class="lure-color">◉ ${lure.color || 'Sølv/blå'}</span><small>${lure.reason || 'Tilpass innsveivingen etter forholdene.'}</small></div>`;
+}
 function renderZones(zones) {
   zoneLayer.clearLayers();
   if (!zones.length) {
     $('zones').innerHTML = '<div class="empty"><b>Ingen sikre soner i utsnittet</b><span>Zoom nærmere kysten eller flytt kartet litt.</span></div>';
     return;
   }
-  $('zones').innerHTML = zones.map((zone,index) => `<article class="zone-row" tabindex="0" data-zone="${zone.id}"><div class="zone-rank">${index+1}</div><div class="zone-copy"><div class="zone-title"><b>${zone.name}</b><span>Score ${zone.score}/100</span></div><p>${zone.reason}</p><div class="factors">${breakdownHtml(zone.breakdown)}</div></div><div class="score" style="--score:${zone.score};--score-color:${scoreColor(zone.score)}">${zone.score}</div></article>`).join('');
+  $('zones').innerHTML = zones.map((zone,index) => `<article class="zone-row" tabindex="0" data-zone="${zone.id}"><div class="zone-rank">${index+1}</div><div class="zone-copy"><div class="zone-title"><b>${zone.name}</b></div><p>${zone.reason}</p><div class="factors">${breakdownHtml(zone.breakdown)}</div></div>${lureHtml(zone.lure)}<div class="score" data-score="${zone.score}" aria-label="Score ${zone.score} av 100" style="--score:${zone.score};--score-color:${scoreColor(zone.score)}"></div></article>`).join('');
   zones.forEach(zone => {
-    const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 }).bindPopup(`<b>${zone.name}</b><br>Score ${zone.score}/100<br>${zone.reason}`);
+    const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 }).bindPopup(`<b>${zone.name}</b><br>Score ${zone.score}/100<br>${zone.reason}<hr><b>Anbefalt sluk:</b><br>${zone.lure?.type || 'Smal kystsluk'} · ${zone.lure?.weight || '18–22 g'}<br>${zone.lure?.color || 'Sølv/blå'}`);
     layer.addTo(zoneLayer);
     const row = document.querySelector(`[data-zone="${zone.id}"]`);
     row?.addEventListener('click', () => { map.fitBounds(layer.getBounds(), { maxZoom: 16, padding:[30,30] }); layer.openPopup(); });
@@ -82,5 +85,5 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=11.1', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=11.3', { updateViaCache: 'none' }).catch(() => {}));
 loadZones({immediate:true});
