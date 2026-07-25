@@ -7,9 +7,17 @@ const { PNG } = require('pngjs');
 const PORT = Number(process.env.PORT || 3000);
 const MET_USER_AGENT = process.env.MET_USER_AGENT || 'sjoorret-live-kart/11 (+https://github.com/aikongen2026/sjoorret-live-kart)';
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const MAX_ZONE_COUNT = 12;
+const MAX_ZONE_CANDIDATES = 180;
+const FISH_TYPES = Object.freeze({ sjoorret:'Sjøørret', makrell:'Makrell', sei:'Sei' });
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function angularDistance(a, b) { return Math.abs((((a - b) % 360) + 540) % 360 - 180); }
+function normalizeFishType(value = 'sjoorret') {
+  const fishType = String(value || 'sjoorret').trim().toLowerCase();
+  if (!Object.hasOwn(FISH_TYPES, fishType)) throw new Error('Ugyldig fisketype. Velg sjøørret, makrell eller sei.');
+  return fishType;
+}
 
 function createBoundedCache({ maxEntries = 220, now = Date.now } = {}) {
   const entries = new Map();
@@ -57,6 +65,33 @@ function computeScore(input = {}) {
   const exposurePoints = Math.round(exposure * 15);
   const temperaturePoints = trend <= -0.3 ? 10 : trend <= 0.5 ? 7 : 3;
   const timePoints = (hour <= 9 || hour >= 18) ? 10 : 5;
+  const fishType = normalizeFishType(input.fishType);
+  if (fishType === 'makrell') {
+    const depth = Number.isFinite(input.depthMeters) ? input.depthMeters : null;
+    const breakdown = {
+      vind: wind >= 2 && wind <= 9 ? 18 : wind < 2 ? 10 : 6,
+      skydekke: cloud <= 75 ? 10 : 7,
+      kyst: Math.round(coastQuality * 14),
+      eksponering: Math.round((0.35 + exposure * 0.65) * 18),
+      temperatur: trend >= -0.8 ? 7 : 4,
+      tidspunkt: hour >= 6 && hour <= 20 ? 13 : 7,
+      dybde: depth === null ? 7 : depth >= 5 && depth <= 35 ? 12 : 6
+    };
+    return { score: clamp(10 + Object.values(breakdown).reduce((sum, value) => sum + value, 0), 0, 100), breakdown };
+  }
+  if (fishType === 'sei') {
+    const depth = Number.isFinite(input.depthMeters) ? input.depthMeters : null;
+    const breakdown = {
+      vind: wind >= 1.5 && wind <= 9 ? 16 : 7,
+      skydekke: cloud >= 35 ? 11 : 7,
+      kyst: Math.round(coastQuality * 16),
+      eksponering: Math.round((0.3 + exposure * 0.7) * 18),
+      temperatur: trend <= 0.8 ? 8 : 5,
+      tidspunkt: hour <= 9 || hour >= 17 ? 12 : 8,
+      dybde: depth === null ? 4 : depth >= 8 ? 20 : depth >= 4 ? 8 : 0
+    };
+    return { score: clamp(10 + Object.values(breakdown).reduce((sum, value) => sum + value, 0), 0, 100), breakdown };
+  }
   const breakdown = { vind: windPoints, skydekke: cloudPoints, kyst: coastPoints, eksponering: exposurePoints, temperatur: temperaturePoints, tidspunkt: timePoints };
   return { score: clamp(10 + Object.values(breakdown).reduce((sum, value) => sum + value, 0), 0, 100), breakdown };
 }
@@ -92,11 +127,12 @@ function stableLureNumber(text) {
   return value >>> 0;
 }
 
-function selectPhotographedLures({ hour, cloud, wind, temp, exposure, coastQuality, depthMeters, conservativeShallow, exposed, sheltered }) {
+function selectPhotographedLures({ fishType='sjoorret', hour, cloud, wind, temp, exposure, coastQuality, depthMeters, conservativeShallow, exposed, sheltered }) {
   const lowLight = hour <= 8 || hour >= 19;
   const bright = !lowLight && cloud < 35;
   const overcastOrCold = !lowLight && (cloud >= 70 || temp < 8);
-  const signature = [hour,Math.round(cloud),Math.round(wind*10),Math.round(temp),Math.round(exposure*100),Math.round(coastQuality*100),depthMeters === null ? 'x' : Math.round(depthMeters*10)].join(':');
+  const signatureBase = [hour,Math.round(cloud),Math.round(wind*10),Math.round(temp),Math.round(exposure*100),Math.round(coastQuality*100),depthMeters === null ? 'x' : Math.round(depthMeters*10)].join(':');
+  const signature = fishType === 'sjoorret' ? signatureBase : `${fishType}:${signatureBase}`;
   const scored = lureCatalog.map(item => {
     const has = tag => item.tags.includes(tag);
     let score = 0;
@@ -108,6 +144,8 @@ function selectPhotographedLures({ hour, cloud, wind, temp, exposure, coastQuali
     else if (exposed) score += (has('casting') ? 5 : 0) + (has('compact') ? 4 : 0) + (has('pencil') ? 3 : 0) - (has('micro') ? 2 : 0);
     else if (sheltered) score += (has('spoon') ? 3 : 0) + (has('slim') ? 2 : 0) + (has('natural') ? 2 : 0);
     if (depthMeters !== null && depthMeters > 12) score += (has('pencil') ? 3 : 0) + (has('minnow') ? 2 : 0) + (has('compact') ? 2 : 0);
+    if (fishType === 'makrell') score += (has('silver') ? 7 : 0) + (has('blue') ? 5 : 0) + (has('casting') ? 6 : 0) + (has('compact') ? 5 : 0) + (has('bright') ? 2 : 0);
+    if (fishType === 'sei') score += (has('silver') ? 6 : 0) + (has('blue') ? 4 : 0) + (has('contrast') ? 5 : 0) + (has('compact') ? 5 : 0) + (has('pencil') ? 4 : 0);
     const tie = (stableLureNumber(`${signature}|${item.id}`) % 300) / 100;
     return { item, score, tie };
   }).sort((a,b) => b.score-a.score || b.tie-a.tie || a.item.id.localeCompare(b.item.id));
@@ -119,6 +157,7 @@ function selectPhotographedLures({ hour, cloud, wind, temp, exposure, coastQuali
 }
 
 function recommendLure(input = {}) {
+  const fishType = normalizeFishType(input.fishType);
   const hour = Number.isFinite(input.hour) ? input.hour : norwegianHour();
   const cloud = Number.isFinite(input.cloud) ? input.cloud : 50;
   const wind = Number.isFinite(input.wind) ? input.wind : 4;
@@ -138,14 +177,26 @@ function recommendLure(input = {}) {
   else if (exposed) { type = 'Langtkastende, kompakt kystsluk'; weight = '22–28 g'; }
   else if (sheltered) { type = 'Saktegående skjesluk eller liten wobbler'; weight = '12–18 g'; }
 
-  const [primary, ...alternateItems] = selectPhotographedLures({ hour, cloud, wind, temp, exposure, coastQuality, depthMeters, conservativeShallow, exposed, sheltered });
+  if (fishType === 'makrell') {
+    type = exposed || (depthMeters !== null && depthMeters > 12) ? 'Langtkastende, kompakt metallagn' : 'Kompakt kastsluk eller metallagn';
+    weight = conservativeShallow ? '12–20 g' : exposed ? '25–40 g' : '18–30 g';
+  } else if (fishType === 'sei') {
+    type = depthMeters !== null && depthMeters > 12 ? 'Pilk eller kompakt metallagn' : 'Kompakt metallagn for variert innsveiving';
+    weight = conservativeShallow ? '18–28 g' : depthMeters !== null && depthMeters > 12 ? '30–50 g' : '20–35 g';
+  }
+
+  const [primary, ...alternateItems] = selectPhotographedLures({ fishType, hour, cloud, wind, temp, exposure, coastQuality, depthMeters, conservativeShallow, exposed, sheltered });
   const timeReason = lowLight ? (hour <= 8 ? 'morgen og lavt lys' : 'kveld/skumring og lavt lys') : cloud < 25 ? 'klart dagslys' : 'dempet dagslys';
   const placeReason = exposed ? 'åpen og vindutsatt plass' : sheltered ? 'lun plass' : 'middels eksponert kyst';
   const depthReason = noDepth ? `estimert dybde ${noDepth} m` : 'dybdedata utilgjengelig';
-  const tackleReason = conservativeShallow ? `${depthReason}; svært grunt eller svært kystnært, velger lett og gruntgående konservativt` : `${depthReason}; ${placeReason}`;
+  const tackleReason = conservativeShallow && fishType === 'sjoorret' ? `${depthReason}; svært grunt eller svært kystnært, velger lett og gruntgående konservativt` : `${depthReason}; ${placeReason}`;
 
   let wobbler;
-  if (conservativeShallow) {
+  if (fishType === 'makrell') {
+    wobbler = { type: 'Slank, synkende minnowvobbler', size: '8–12 cm', color: lowLight ? 'Sølv med rosa eller mørk kontrast' : 'Sølv/blå med mørk rygg', image: lowLight ? '/lures/gold-orange-lowlight.jpg' : '/lures/blue-silver-shallow.jpg' };
+  } else if (fishType === 'sei') {
+    wobbler = { type: depthMeters !== null && depthMeters > 12 ? 'Synkende minnowvobbler' : 'Stabil minnowvobbler', size: '9–13 cm', color: lowLight ? 'Sort rygg over sølvside' : 'Blå/sort rygg og sølvside', image: '/lures/black-silver-diving.jpg' };
+  } else if (conservativeShallow) {
     wobbler = { type: 'Flytende, gruntgående minnowvobbler', size: '6–9 cm', color: lowLight ? 'Gull/oransje med rød buk' : 'Sølv/blå med mørk rygg', image: lowLight ? '/lures/gold-orange-lowlight.jpg' : '/lures/blue-silver-shallow.jpg' };
   } else if (lowLight) {
     wobbler = { type: sheltered ? 'Flytende, gruntgående minnowvobbler' : 'Sakte synkende minnowvobbler', size: '9–11 cm', color: 'Gull/oransje med rød buk', image: '/lures/gold-orange-lowlight.jpg' };
@@ -156,9 +207,10 @@ function recommendLure(input = {}) {
   } else {
     wobbler = { type: 'Gruntgående minnowvobbler', size: '8–11 cm', color: 'Sølv/blå med mørk rygg', image: '/lures/blue-silver-shallow.jpg' };
   }
-  const depth = { meters: depthMeters, label: noDepth ? `${noDepth} m estimert${conservativeShallow ? ' · gruntvannsvalg' : ''}` : `Ukjent${conservativeShallow ? ' · konservativt gruntvannsvalg' : ''}`, source: depthMeters === null ? null : 'EMODnet DTM (~125 m oppløsning)', estimated: depthMeters !== null, conservativeShallow };
+  const depth = { meters: depthMeters, label: noDepth ? `${noDepth} m estimert${conservativeShallow && fishType === 'sjoorret' ? ' · gruntvannsvalg' : ''}` : `Ukjent${conservativeShallow && fishType === 'sjoorret' ? ' · konservativt gruntvannsvalg' : ''}`, source: depthMeters === null ? null : 'EMODnet DTM (~125 m oppløsning)', estimated: depthMeters !== null, conservativeShallow };
   const alternatives = alternateItems.map(item => ({ name:item.name, type:item.family, weight, color:item.color, image:item.image, reason:'Alternativt fotoagn for de samme forholdene.' }));
-  return { name:primary.name, type, weight, color:primary.color, image:primary.image, reason: `${timeReason}; ${tackleReason}.`, depth, wobbler, alternatives };
+  const speciesReason = fishType === 'makrell' ? 'Makrell: søk i frie vannmasser og rundt strøm, odder eller stimer av småfisk' : fishType === 'sei' ? 'Sei: prioriter strøm, bratte kanter og vann med litt dybde' : null;
+  return { name:primary.name, type, weight, color:primary.color, image:primary.image, reason: `${speciesReason ? `${speciesReason}; ` : ''}${timeReason}; ${tackleReason}.`, depth, wobbler, alternatives };
 }
 
 function formatReason({ breakdown = {}, weather = {}, coastQuality = 0.5, exposure = 0.5 } = {}) {
@@ -281,18 +333,19 @@ async function polygonMostlyWater(poly, zoom) {
   return ok >= Math.ceil(samples.length*0.7);
 }
 function candidateGrid(west,south,east,north) {
-  const points=[]; const rows=22,cols=30;
-  for(let r=1;r<rows;r++) for(let c=1;c<cols;c++) { if((r*11+c*7)%4) continue; const lon=west+(east-west)*c/cols,lat=south+(north-south)*r/rows; points.push({lat,lon,seed:Math.sin(lat*911+lon*613)}); }
-  return points.sort((a,b)=>b.seed-a.seed).slice(0,90);
+  const points=[]; const rows=28,cols=40;
+  for(let r=1;r<rows;r++) for(let c=1;c<cols;c++) { if((r*11+c*7)%3) continue; const lon=west+(east-west)*c/cols,lat=south+(north-south)*r/rows; points.push({lat,lon,seed:Math.sin(lat*911+lon*613)}); }
+  return points.sort((a,b)=>b.seed-a.seed).slice(0,MAX_ZONE_CANDIDATES);
 }
-async function generateZones({west,south,east,north,zoom}, currentWeather) {
+async function generateZones({west,south,east,north,zoom}, currentWeather, selectedFishType='sjoorret') {
+  const fishType = normalizeFishType(selectedFishType);
   const width=east-west,height=north-south,zones=[]; let tested=0,rejected=0,maskError=null,depthError=null;
   for (const point of candidateGrid(west,south,east,north)) {
-    if (zones.length>=8) break; tested++;
+    if (zones.length>=MAX_ZONE_COUNT) break; tested++;
     try {
       const coast=await nearCoastInfo(point.lat,point.lon,width,height,zoom); if(!coast){rejected++;continue;}
       const polygon=makeRibbon(point.lat,point.lon,coast.tangent,width*0.045,width*0.0055); if(!(await polygonMostlyWater(polygon,zoom))){rejected++;continue;}
-      const exposure=windExposure(currentWeather?.windDirection,coast.coastNormal); const hour=norwegianHour(); const scoring=computeScore({...currentWeather,coastQuality:coast.quality,exposure,hour});
+      const exposure=windExposure(currentWeather?.windDirection,coast.coastNormal); const hour=norwegianHour(); const scoring=computeScore({...currentWeather,coastQuality:coast.quality,exposure,hour,fishType});
       zones.push({id:`zone-${zones.length+1}-${Math.round(point.lat*10000)}-${Math.round(point.lon*10000)}`,score:scoring.score,name:scoring.score>=82?'Svært høy':scoring.score>=68?'Høy':'Moderat',breakdown:scoring.breakdown,polygon,_point:point,_coast:coast,_exposure:exposure,_hour:hour});
     } catch(error) { maskError=error.message; rejected++; if(tested>12&&!zones.length) break; }
   }
@@ -301,8 +354,13 @@ async function generateZones({west,south,east,north,zoom}, currentWeather) {
     try { depth=await depthAtPoint(zone._point.lat,zone._point.lon); } catch(error) { depthError=error.message; }
     const shallowRisk=depth ? depth.meters<=5 || zone._coast.quality>=0.95 : zone._coast.quality>=0.75;
     zone.depth=depth || { meters:null, category:'unknown', source:null, resolutionM:null, estimated:false };
-    zone.lure=recommendLure({...currentWeather,coastQuality:zone._coast.quality,exposure:zone._exposure,hour:zone._hour,lat:zone._point.lat,lon:zone._point.lon,depthMeters:depth?.meters,shallowRisk});
-    zone.reason=formatReason({ score:zone.score, breakdown:zone.breakdown, weather:currentWeather||{}, coastQuality:zone._coast.quality, exposure:zone._exposure });
+    const rescored=computeScore({...currentWeather,coastQuality:zone._coast.quality,exposure:zone._exposure,hour:zone._hour,depthMeters:depth?.meters,fishType});
+    zone.score=rescored.score; zone.breakdown=rescored.breakdown;
+    zone.name=zone.score>=82?'Svært høy':zone.score>=68?'Høy':'Moderat';
+    zone.lure=recommendLure({...currentWeather,coastQuality:zone._coast.quality,exposure:zone._exposure,hour:zone._hour,lat:zone._point.lat,lon:zone._point.lon,depthMeters:depth?.meters,shallowRisk,fishType});
+    const baseReason=formatReason({ score:zone.score, breakdown:zone.breakdown, weather:currentWeather||{}, coastQuality:zone._coast.quality, exposure:zone._exposure });
+    const fishReason=fishType==='makrell'?'Makrell: sonen gir kystnært, åpnere vann der stimer kan trekke forbi.':fishType==='sei'?(Number.isFinite(depth?.meters)&&depth.meters>=8?'Sei: sonen har estimert dybde og eksponering som gjør den aktuell.':Number.isFinite(depth?.meters)?'Sei: grunt kystområde; fisk sluken mot renner eller dypere vann utenfor sonen.':'Sei: dybden er ikke bekreftet; se etter renner og bratte kanter i sjøkartet.'):'';
+    zone.reason=fishReason?`${fishReason} ${baseReason}`:baseReason;
     delete zone._point; delete zone._coast; delete zone._exposure; delete zone._hour;
   }));
   const warning=[maskError?'Vannmasken svarte ikke; prøv igjen om litt.':null,depthError?'Dybdeestimat er midlertidig utilgjengelig for noen soner.':null].filter(Boolean).join(' ')||null;
@@ -317,7 +375,7 @@ async function handleApi(req,res,url) {
   try {
     if(url.pathname==='/api/health') return send(res,200,{ok:true,version:'v11'});
     if(url.pathname==='/api/weather') { const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon')); if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<57||lat>72||lon<3||lon>32) return send(res,400,{error:'Ugyldig lat/lon for norskekysten'}); return send(res,200,await weather(lat,lon)); }
-    if(url.pathname==='/api/zones') { let input; try{input=validateZoneRequest(url.searchParams.get('bbox'),url.searchParams.get('zoom')||'12');}catch(error){return send(res,400,{error:error.message});} const lat=(input.south+input.north)/2,lon=(input.west+input.east)/2; let current=null,weatherWarning=null; try{current=await weather(lat,lon);}catch(error){weatherWarning='Værdata er midlertidig utilgjengelig.';} const result=await generateZones(input,current); return send(res,200,{...result,weather:current,warnings:[weatherWarning,result.stats.warning].filter(Boolean)}); }
+    if(url.pathname==='/api/zones') { let input,fishType; try{input=validateZoneRequest(url.searchParams.get('bbox'),url.searchParams.get('zoom')||'12');fishType=normalizeFishType(url.searchParams.get('fish')||'sjoorret');}catch(error){return send(res,400,{error:error.message});} const lat=(input.south+input.north)/2,lon=(input.west+input.east)/2; let current=null,weatherWarning=null; try{current=await weather(lat,lon);}catch(error){weatherWarning='Værdata er midlertidig utilgjengelig.';} const result=await generateZones(input,current,fishType); return send(res,200,{...result,fishType,fishLabel:FISH_TYPES[fishType],weather:current,warnings:[weatherWarning,result.stats.warning].filter(Boolean)}); }
     return send(res,404,{error:'Ukjent API'});
   } catch(error) { return send(res,500,{error:error.message||String(error)}); }
 }
@@ -327,4 +385,4 @@ function createServer() {
 }
 function startServer(port=PORT) { const server=createServer(); return server.listen(port,()=>{ let ip='localhost'; for(const list of Object.values(os.networkInterfaces())) for(const item of list||[]) if(item.family==='IPv4'&&!item.internal) ip=item.address; console.log(`Sjøørret Live Kart v11 kjører på http://${ip}:${port}`); }); }
 if(require.main===module) startServer();
-module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,createServer,startServer,weather,generateZones};
+module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,normalizeFishType,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};

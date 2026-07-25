@@ -274,3 +274,53 @@ test('lure photos are rendered in zone cards and map popups', () => {
     assert.ok(fs.existsSync(path.join(root, 'lures', name)), `${name} is missing`);
   }
 });
+
+test('fish type validation supports sjøørret, makrell and sei only', () => {
+  assert.equal(app.normalizeFishType('sjoorret'), 'sjoorret');
+  assert.equal(app.normalizeFishType('makrell'), 'makrell');
+  assert.equal(app.normalizeFishType('sei'), 'sei');
+  assert.equal(app.normalizeFishType(), 'sjoorret');
+  assert.throws(() => app.normalizeFishType('torsk'), /fisketype/i);
+});
+
+test('mackerel and saithe receive distinct species-aware lure advice', () => {
+  const conditions = { hour: 13, cloud: 25, wind: 6, temp: 14, exposure: 0.8, coastQuality: 0.6, depthMeters: 18 };
+  const seaTrout = app.recommendLure({ ...conditions, fishType: 'sjoorret' });
+  const mackerel = app.recommendLure({ ...conditions, fishType: 'makrell' });
+  const saithe = app.recommendLure({ ...conditions, fishType: 'sei' });
+  assert.match(mackerel.reason, /makrell/i);
+  assert.match(mackerel.type, /kastsluk|metallagn/i);
+  assert.match(saithe.reason, /sei/i);
+  assert.match(saithe.type, /pilk|metallagn/i);
+  assert.notEqual(mackerel.type, seaTrout.type);
+  assert.notEqual(saithe.weight, seaTrout.weight);
+});
+
+test('species scoring can use depth without changing the sjøørret baseline', () => {
+  const base = { wind: 4, cloud: 50, coastQuality: 0.7, exposure: 0.7, hour: 12, depthMeters: 18 };
+  assert.deepEqual(app.computeScore(base), app.computeScore({ ...base, fishType: 'sjoorret' }));
+  const saithe = app.computeScore({ ...base, fishType: 'sei' });
+  assert.ok(Object.hasOwn(saithe.breakdown, 'dybde'));
+  assert.ok(saithe.breakdown.dybde > 0);
+});
+
+test('REV 03 increases the recommended zone ceiling', () => {
+  assert.ok(app.MAX_ZONE_COUNT > 8);
+});
+
+test('results UI sends selected fish type and provides lure image zoom', () => {
+  const root = path.join(__dirname, '..', 'public');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const js = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  assert.match(html, /id="fishType"/);
+  assert.match(html, /value="sjoorret"/);
+  assert.match(html, /value="makrell"/);
+  assert.match(html, /value="sei"/);
+  assert.match(html, /id="lureViewer"/);
+  assert.match(js, /searchParams\.set\(['"]fish['"]/);
+  assert.match(js, /fishType.*addEventListener\(['"]change['"]/s);
+  assert.match(js, /openLureViewer/);
+  assert.match(css, /\.zoomable-lure/);
+  assert.match(css, /#lureViewer/);
+});

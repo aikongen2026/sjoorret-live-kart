@@ -10,7 +10,18 @@ window.addEventListener('load', () => setTimeout(() => map.invalidateSize({ pan:
 let timer;
 let controller;
 let locationMarker;
-const labels = { vind:'Vind', skydekke:'Skydekke', kyst:'Kyst', eksponering:'Eksponering', temperatur:'Temperatur', tidspunkt:'Tidspunkt' };
+const labels = { vind:'Vind', skydekke:'Skydekke', kyst:'Kyst', eksponering:'Eksponering', temperatur:'Temperatur', tidspunkt:'Tidspunkt', dybde:'Dybde' };
+const lureViewer = $('lureViewer');
+const lureViewerImage = $('lureViewerImage');
+const lureViewerCaption = $('lureViewerCaption');
+
+function openLureViewer(src, caption='Anbefalt sluk') {
+  lureViewerImage.src = src;
+  lureViewerImage.alt = caption;
+  lureViewerCaption.textContent = caption;
+  if (typeof lureViewer.showModal === 'function') lureViewer.showModal();
+  else lureViewer.setAttribute('open', '');
+}
 
 function scoreColor(score) { return score >= 82 ? '#38d477' : score >= 68 ? '#b8df45' : '#f2c94c'; }
 function setState(state, text) {
@@ -39,16 +50,16 @@ function breakdownHtml(breakdown={}) {
 }
 function alternativeLuresHtml(alternatives=[]) {
   if (!alternatives.length) return '';
-  return `<div class="lure-alternatives"><span>Andre gode valg</span><div>${alternatives.map(choice => `<article><img class="alternative-lure-thumb" src="${choice.image}" alt="${choice.name}" loading="lazy"><small><b>${choice.name}</b>${choice.family || choice.type} · velg ${choice.weight}<em>${choice.color}</em></small></article>`).join('')}</div></div>`;
+  return `<div class="lure-alternatives"><span>Andre gode valg</span><div>${alternatives.map(choice => `<article><img class="alternative-lure-thumb zoomable-lure" src="${choice.image}" alt="${choice.name} – ${choice.color}" loading="lazy" tabindex="0" role="button"><small><b>${choice.name}</b>${choice.family || choice.type} · velg ${choice.weight}<em>${choice.color}</em></small></article>`).join('')}</div></div>`;
 }
 function popupAlternativeLuresHtml(alternatives=[]) {
   if (!alternatives.length) return '';
-  return `<div class="popup-alternatives"><b>Andre gode valg:</b>${alternatives.map(choice => `<div><img class="popup-alternative-thumb" src="${choice.image}" alt="${choice.name}"><span><strong>${choice.name}</strong><br>${choice.type} · velg ${choice.weight}<br>${choice.color}</span></div>`).join('')}</div>`;
+  return `<div class="popup-alternatives"><b>Andre gode valg:</b>${alternatives.map(choice => `<div><img class="popup-alternative-thumb zoomable-lure" src="${choice.image}" alt="${choice.name} – ${choice.color}" tabindex="0" role="button"><span><strong>${choice.name}</strong><br>${choice.type} · velg ${choice.weight}<br>${choice.color}</span></div>`).join('')}</div>`;
 }
 function lureHtml(lure={}) {
   const wobbler = lure.wobbler || {};
   const depth = lure.depth || {};
-  return `<div class="lure-cell"><div class="lure-main"><img class="lure-photo" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="${lure.name || `Eksempel på ${lure.color || 'sølv/blå sluk'}`}" loading="lazy"><div><span class="lure-label">Anbefalt sluk</span><b>${lure.name ? `${lure.name} · ` : ''}${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><span class="lure-color">◉ ${lure.color || 'Sølv/blå'}</span><span class="depth-note">Dybde: ${depth.label || 'ukjent'}</span></div></div><small>${lure.reason || 'Tilpass innsveivingen etter forholdene.'}</small>${alternativeLuresHtml(lure.alternatives)}<div class="wobbler-rec"><img class="lure-thumb" src="${wobbler.image || '/lures/blue-silver-shallow.jpg'}" alt="Eksempel på ${wobbler.color || 'sølv/blå vobbler'}" loading="lazy"><div><span>Effektiv vobbler</span><b>${wobbler.type || 'Gruntgående minnowvobbler'} · ${wobbler.size || '8–11 cm'}</b><small>${wobbler.color || 'Sølv/blå med mørk rygg'}</small></div></div></div>`;
+  return `<div class="lure-cell"><div class="lure-main"><img class="lure-photo zoomable-lure" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="${lure.name || `Eksempel på ${lure.color || 'sølv/blå sluk'}`}" loading="lazy" tabindex="0" role="button"><div><span class="lure-label">Anbefalt sluk</span><b>${lure.name ? `${lure.name} · ` : ''}${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><span class="lure-color">◉ ${lure.color || 'Sølv/blå'}</span><span class="depth-note">Dybde: ${depth.label || 'ukjent'}</span></div></div><small>${lure.reason || 'Tilpass innsveivingen etter forholdene.'}</small>${alternativeLuresHtml(lure.alternatives)}<div class="wobbler-rec"><img class="lure-thumb zoomable-lure" src="${wobbler.image || '/lures/blue-silver-shallow.jpg'}" alt="Eksempel på ${wobbler.color || 'sølv/blå vobbler'}" loading="lazy" tabindex="0" role="button"><div><span>Effektiv vobbler</span><b>${wobbler.type || 'Gruntgående minnowvobbler'} · ${wobbler.size || '8–11 cm'}</b><small>${wobbler.color || 'Sølv/blå med mørk rygg'}</small></div></div></div>`;
 }
 function renderZones(zones) {
   zoneLayer.clearLayers();
@@ -58,7 +69,7 @@ function renderZones(zones) {
   }
   $('zones').innerHTML = zones.map((zone,index) => `<article class="zone-row" tabindex="0" data-zone="${zone.id}"><div class="zone-rank">${index+1}</div><div class="zone-copy"><div class="zone-title"><b>${zone.name}</b></div><p>${zone.reason}</p><div class="factors">${breakdownHtml(zone.breakdown)}</div></div>${lureHtml(zone.lure)}<div class="score" data-score="${zone.score}" aria-label="Score ${zone.score} av 100" style="--score:${zone.score};--score-color:${scoreColor(zone.score)}"></div></article>`).join('');
   zones.forEach(zone => {
-    const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 }).bindPopup(`<b>${zone.name}</b><br>Score ${zone.score}/100<br>${zone.reason}<hr><div class="popup-tackle"><img class="popup-lure-thumb" src="${zone.lure?.image || '/lures/spoon-blue-silver.jpg'}" alt="Anbefalt sluk"><div><b>Anbefalt sluk:</b><br>${zone.lure?.name ? `${zone.lure.name} · ` : ''}${zone.lure?.type || 'Smal kystsluk'} · ${zone.lure?.weight || '18–22 g'}<br>${zone.lure?.color || 'Sølv/blå'}<br><span>Dybde: ${zone.lure?.depth?.label || 'ukjent'}</span></div></div>${popupAlternativeLuresHtml(zone.lure?.alternatives)}<div class="popup-tackle"><img class="popup-lure-thumb" src="${zone.lure?.wobbler?.image || '/lures/blue-silver-shallow.jpg'}" alt="Effektiv vobbler"><div><b>Effektiv vobbler:</b><br>${zone.lure?.wobbler?.type || 'Gruntgående minnowvobbler'} · ${zone.lure?.wobbler?.size || '8–11 cm'}<br>${zone.lure?.wobbler?.color || 'Sølv/blå'}</div></div>`);
+    const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 }).bindPopup(`<b>${zone.name}</b><br>Score ${zone.score}/100<br>${zone.reason}<hr><div class="popup-tackle"><img class="popup-lure-thumb zoomable-lure" src="${zone.lure?.image || '/lures/spoon-blue-silver.jpg'}" alt="${zone.lure?.name || 'Anbefalt sluk'} – ${zone.lure?.color || 'Sølv/blå'}" tabindex="0" role="button"><div><b>Anbefalt sluk:</b><br>${zone.lure?.name ? `${zone.lure.name} · ` : ''}${zone.lure?.type || 'Smal kystsluk'} · ${zone.lure?.weight || '18–22 g'}<br>${zone.lure?.color || 'Sølv/blå'}<br><span>Dybde: ${zone.lure?.depth?.label || 'ukjent'}</span></div></div>${popupAlternativeLuresHtml(zone.lure?.alternatives)}<div class="popup-tackle"><img class="popup-lure-thumb zoomable-lure" src="${zone.lure?.wobbler?.image || '/lures/blue-silver-shallow.jpg'}" alt="Effektiv vobbler – ${zone.lure?.wobbler?.color || 'Sølv/blå'}" tabindex="0" role="button"><div><b>Effektiv vobbler:</b><br>${zone.lure?.wobbler?.type || 'Gruntgående minnowvobbler'} · ${zone.lure?.wobbler?.size || '8–11 cm'}<br>${zone.lure?.wobbler?.color || 'Sølv/blå'}</div></div>`);
     layer.addTo(zoneLayer);
     const row = document.querySelector(`[data-zone="${zone.id}"]`);
     row?.addEventListener('click', () => { map.fitBounds(layer.getBounds(), { maxZoom: 16, padding:[30,30] }); layer.openPopup(); });
@@ -73,7 +84,9 @@ async function loadZones({ immediate=false }={}) {
     setState('loading','Analyserer kyst, vind og sjøforhold …');
     $('zones').setAttribute('aria-busy','true');
     try {
-      const response = await fetch(`/api/zones?bbox=${encodeURIComponent(bbox)}&zoom=${map.getZoom()}`, { cache:'no-store', signal:controller.signal });
+      const searchParams = new URLSearchParams({ bbox, zoom:String(map.getZoom()) });
+      searchParams.set('fish', $('fishType').value);
+      const response = await fetch(`/api/zones?${searchParams}`, { cache:'no-store', signal:controller.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `API-feil ${response.status}`);
       renderWeather(data.weather); renderZones(data.zones || []);
@@ -93,9 +106,14 @@ async function loadZones({ immediate=false }={}) {
 map.on('dragend zoomend', () => loadZones());
 $('locate').addEventListener('click', () => { setState('locating','Finner posisjonen din …'); map.locate({ setView:true, maxZoom:14, enableHighAccuracy:true }); });
 $('retry').addEventListener('click', () => loadZones({immediate:true}));
+$('fishType').addEventListener('change', () => loadZones({immediate:true}));
+$('closeLureViewer').addEventListener('click', () => lureViewer.close());
+lureViewer.addEventListener('click', event => { if (event.target === lureViewer) lureViewer.close(); });
+document.addEventListener('click', event => { const image=event.target.closest?.('.zoomable-lure'); if (!image) return; event.preventDefault(); event.stopPropagation(); openLureViewer(image.currentSrc || image.src, image.alt); }, true);
+document.addEventListener('keydown', event => { const image=event.target.closest?.('.zoomable-lure'); if (image && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openLureViewer(image.currentSrc || image.src, image.alt); } });
 map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); locationMarker=L.circleMarker(event.latlng,{radius:7,color:'#fff',weight:2,fillColor:'#38d477',fillOpacity:1}).addTo(map).bindPopup('Din posisjon').openPopup(); setState('ready','Posisjon funnet. Oppdaterer soner …'); loadZones({immediate:true}); });
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=11.8', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=11.9', { updateViaCache: 'none' }).catch(() => {}));
 loadZones({immediate:true});

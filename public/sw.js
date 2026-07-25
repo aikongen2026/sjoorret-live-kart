@@ -1,6 +1,6 @@
-const CACHE = 'sjoorret-v11.8-shell';
+const CACHE = 'sjoorret-v11.9-shell';
 const SHELL = [
-  '/', '/index.html', '/style.css?v=11.10', '/app.js?v=11.7', '/manifest.webmanifest', '/icon.svg',
+  '/', '/index.html', '/style.css?v=11.11', '/app.js?v=11.8', '/manifest.webmanifest', '/icon.svg',
   '/lures/spoon-light-silver.jpg', '/lures/spoon-warm-copper.jpg', '/lures/spoon-blue-silver.jpg', '/lures/spoon-compact-spotted.jpg',
   '/lures/blue-silver-shallow.jpg', '/lures/black-silver-diving.jpg', '/lures/gold-orange-lowlight.jpg', '/lures/trout-natural.jpg',
   '/lures/user/a01-silver-scale-spoon.jpg', '/lures/user/a02-gold-stripe-caster.jpg', '/lures/user/a06-blue-spotted-stickbait.jpg',
