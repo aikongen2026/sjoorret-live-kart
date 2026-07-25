@@ -324,3 +324,38 @@ test('results UI sends selected fish type and provides lure image zoom', () => {
   assert.match(css, /\.zoomable-lure/);
   assert.match(css, /#lureViewer/);
 });
+
+test('REV 04A separates recommendation score from source confidence', () => {
+  const complete = app.buildDataQuality({
+    weather: { wind:4, windDirection:210, cloud:70, temp:11, observedAt:'2026-07-25T17:00:00Z', source:'MET Norway' },
+    depth: { meters:8.4, source:'EMODnet Bathymetry mean DTM', resolutionM:125, estimated:true }
+  });
+  const noDepth = app.buildDataQuality({ weather: { wind:4, windDirection:210, cloud:70, temp:11, observedAt:'2026-07-25T17:00:00Z', source:'MET Norway' }, depth:null });
+  const limited = app.buildDataQuality({ weather:null, depth:null });
+  assert.equal(complete.level, 'Godt');
+  assert.equal(complete.depth.available, true);
+  assert.equal(complete.weather.kind, 'Værmodell');
+  assert.equal(noDepth.level, 'Middels');
+  assert.match(noDepth.summary, /dybde/i);
+  assert.equal(noDepth.depth.available, false);
+  assert.equal(limited.level, 'Begrenset');
+  assert.match(limited.summary, /værdata/i);
+});
+
+test('REV 04A UI explains scoring, numbers zones, and keeps popup compact', () => {
+  const root = path.join(__dirname, '..', 'public');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const js = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+  assert.match(html, /id="scoreDisclaimer"/);
+  assert.match(html, /id="analysisSources"/);
+  assert.match(html, /REV 04A/);
+  assert.match(js, /zone-number/);
+  assert.match(js, /data-quality/);
+  assert.match(js, /popup-details/);
+  assert.match(js, /Fiskeforhold/);
+  assert.match(js, /Datagrunnlag/);
+  assert.match(css, /\.zone-number/);
+  assert.match(css, /\.data-quality/);
+  assert.match(css, /\.compact-popup/);
+});

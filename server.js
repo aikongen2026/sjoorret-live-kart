@@ -100,6 +100,44 @@ function norwegianHour(date = new Date()) {
   return Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', hour: '2-digit', hourCycle: 'h23' }).format(date));
 }
 
+function buildDataQuality({ weather = null, depth = null } = {}) {
+  const weatherFields = ['wind','windDirection','cloud','temp'];
+  const weatherAvailable = weatherFields.filter(key => Number.isFinite(weather?.[key]));
+  const completeWeather = weatherAvailable.length === weatherFields.length;
+  const depthAvailable = Number.isFinite(depth?.meters);
+  let level = 'Begrenset';
+  if (completeWeather && depthAvailable) level = 'Godt';
+  else if (weatherAvailable.length >= 3) level = 'Middels';
+  const missing = [];
+  if (!completeWeather) missing.push('værdata');
+  if (!depthAvailable) missing.push('dybde');
+  const summary = missing.length ? `${missing.join(' og ')} mangler` : 'værmodell, kystanalyse og estimert dybde er tilgjengelig';
+  return {
+    level,
+    summary,
+    missing,
+    weather: {
+      available: weatherAvailable.length > 0,
+      complete: completeWeather,
+      kind: 'Værmodell',
+      source: weather?.source || 'MET Norway',
+      updatedAt: weather?.observedAt || null
+    },
+    coast: {
+      available: true,
+      kind: 'Beregnet analyse',
+      source: 'OSM-vannmaske og kystgeometri'
+    },
+    depth: {
+      available: depthAvailable,
+      kind: depthAvailable ? 'Estimert modell' : 'Mangler',
+      source: depth?.source || 'EMODnet Bathymetry mean DTM',
+      resolutionM: depth?.resolutionM || 125,
+      estimated: depthAvailable
+    }
+  };
+}
+
 const lureCatalog = Object.freeze([
   { id:'a01', name:'Sølvskjell', family:'Smal skjesluk', color:'Sølv med skjellmønster', image:'/lures/user/a01-silver-scale-spoon.jpg', tags:['silver','natural','spoon','slim'] },
   { id:'a02', name:'Gullstripe', family:'Kompakt kastsluk', color:'Gullstripe over holografisk sølv', image:'/lures/user/a02-gold-stripe-caster.jpg', tags:['warm','silver','casting','compact'] },
@@ -354,6 +392,7 @@ async function generateZones({west,south,east,north,zoom}, currentWeather, selec
     try { depth=await depthAtPoint(zone._point.lat,zone._point.lon); } catch(error) { depthError=error.message; }
     const shallowRisk=depth ? depth.meters<=5 || zone._coast.quality>=0.95 : zone._coast.quality>=0.75;
     zone.depth=depth || { meters:null, category:'unknown', source:null, resolutionM:null, estimated:false };
+    zone.dataQuality=buildDataQuality({weather:currentWeather,depth});
     const rescored=computeScore({...currentWeather,coastQuality:zone._coast.quality,exposure:zone._exposure,hour:zone._hour,depthMeters:depth?.meters,fishType});
     zone.score=rescored.score; zone.breakdown=rescored.breakdown;
     zone.name=zone.score>=82?'Svært høy':zone.score>=68?'Høy':'Moderat';
@@ -364,7 +403,7 @@ async function generateZones({west,south,east,north,zoom}, currentWeather, selec
     delete zone._point; delete zone._coast; delete zone._exposure; delete zone._hour;
   }));
   const warning=[maskError?'Vannmasken svarte ikke; prøv igjen om litt.':null,depthError?'Dybdeestimat er midlertidig utilgjengelig for noen soner.':null].filter(Boolean).join(' ')||null;
-  return {zones:zones.sort((a,b)=>b.score-a.score),stats:{tested,rejected,strictLandmask:true,waterMaskAvailable:!maskError,depthAvailable:zones.filter(z=>Number.isFinite(z.depth?.meters)).length,depthResolutionM:125,warning,source:'OSM vannmaske + Kartverket sjøkart + EMODnet dybdeestimat + MET Norway'}};
+  return {zones:zones.sort((a,b)=>b.score-a.score),stats:{tested,rejected,strictLandmask:true,waterMaskAvailable:!maskError,depthAvailable:zones.filter(z=>Number.isFinite(z.depth?.meters)).length,depthResolutionM:125,warning,generatedAt:new Date().toISOString(),source:'OSM vannmaske + Kartverket sjøkart + EMODnet dybdeestimat + MET Norway'}};
 }
 
 function send(res, code, data, type='application/json; charset=utf-8', extraHeaders={}) {
@@ -385,4 +424,4 @@ function createServer() {
 }
 function startServer(port=PORT) { const server=createServer(); return server.listen(port,()=>{ let ip='localhost'; for(const list of Object.values(os.networkInterfaces())) for(const item of list||[]) if(item.family==='IPv4'&&!item.internal) ip=item.address; console.log(`Sjøørret Live Kart v11 kjører på http://${ip}:${port}`); }); }
 if(require.main===module) startServer();
-module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,normalizeFishType,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};
+module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};

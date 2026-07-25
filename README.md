@@ -6,6 +6,8 @@ Slukanbefalingen viser type, vekt, farge og et miniatyrbilde fra brukerens eget 
 
 REV 03 viser inntil 12 anbefalte soner. Sjøørret beholder den eksisterende profilen, mens makrell prioriterer kastbare metallagn og åpnere kystvann, og sei prioriterer kompakte metallagn/pilk samt tilgjengelig dybde. Klikk eller trykk på et slukbilde for å åpne en stor visning; trykk utenfor bildet eller på × for å lukke.
 
+REV 04A skiller mellom **fiskeforhold** og **datagrunnlag** uten å endre eksisterende poengvekter. Fiskeforhold 0–100 er en veiledende rangering, ikke fangstsannsynlighet. Datagrunnlag viser om værmodell, beregnet kystanalyse og estimert dybde er tilgjengelig, med kilde, datatype og oppdateringstid. Sonene har samme nummer på kartet og i resultatlisten, og kart-popupen viser et kompakt sammendrag med lenke til alle detaljer.
+
 Dybden hentes som punktestimat fra EMODnet Bathymetry mean DTM med omtrent 125 m oppløsning og merkes derfor som estimert. For sjøørret får soner på inntil 5 m 7–12 g lett, gruntgående sluk og 6–9 cm flytende/gruntgående vobbler, selv når vinden ellers ville gitt en tung kystsluk. Når dybdedata mangler i en tydelig kystnær eller innelukket sjøørretsone, velger appen gruntvannsutstyr konservativt. Anbefalingene er veiledende startvalg, ikke en fangstgaranti.
 
 ## Start lokalt
@@ -35,5 +37,6 @@ Kartutsnitt valideres og må ligge ved norskekysten. Nye analyser krever nett; a
 - MET Norway Locationforecast
 - OpenStreetMap vannmaske/kartfliser
 - Kartverket sjøkartlag
+- EMODnet Bathymetry mean DTM (estimert dybde, omtrent 125 m oppløsning)
 
 Analysen er veiledende. Kontroller lokale regler, vær og sikkerhet før fiske.

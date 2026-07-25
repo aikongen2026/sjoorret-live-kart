@@ -30,6 +30,11 @@ function setState(state, text) {
   $('retry').hidden = state !== 'error';
 }
 function formatValue(value, suffix='') { return Number.isFinite(value) ? `${value}${suffix}` : '–'; }
+function formatSourceTime(value) {
+  if (!value) return 'ukjent tidspunkt';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'ukjent tidspunkt' : date.toLocaleString('no-NO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
 function renderWeather(weather) {
   if (!weather) {
     $('weatherGrid').innerHTML = '<p class="muted span-all">Værdata er ikke tilgjengelig akkurat nå.</p>';
@@ -48,6 +53,20 @@ function renderWeather(weather) {
 function breakdownHtml(breakdown={}) {
   return Object.entries(breakdown).map(([key,value]) => `<span class="factor">${labels[key] || key}: <b>+${value}</b></span>`).join('');
 }
+function strongestFactorsHtml(breakdown={}) {
+  return Object.entries(breakdown).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([key,value])=>`<span>${labels[key]||key} <b>+${value}</b></span>`).join('');
+}
+function dataQualityHtml(quality={}) {
+  const level=quality.level || 'Begrenset';
+  const weather=quality.weather || {}, depth=quality.depth || {}, coast=quality.coast || {};
+  const depthText=depth.available ? `${depth.source || 'EMODnet'} · estimert · ca. ${depth.resolutionM || 125} m oppløsning` : 'Dybde mangler – slukvalget er et konservativt startvalg';
+  return `<div class="data-quality" data-level="${level.toLowerCase()}"><div><span>Datagrunnlag</span><b>${level}</b></div><small>${quality.summary || 'Kildestatus ukjent'}</small><details><summary>Kilder og usikkerhet</summary><ul><li><b>${weather.kind || 'Værmodell'}:</b> ${weather.source || 'MET Norway'} · ${formatSourceTime(weather.updatedAt)}</li><li><b>${coast.kind || 'Beregnet analyse'}:</b> ${coast.source || 'OSM-vannmaske og kystgeometri'}</li><li><b>Dybde:</b> ${depthText}</li></ul></details></div>`;
+}
+function renderSources(weather,stats={}) {
+  const modelTime=formatSourceTime(weather?.observedAt);
+  const analysisTime=formatSourceTime(stats.generatedAt);
+  $('analysisSources').innerHTML=`<b>Værmodell:</b> ${weather?.source || 'MET Norway'} · ${modelTime}<br><b>Analyse:</b> ${analysisTime} · OSM-kystgeometri · EMODnet-dybde der tilgjengelig`;
+}
 function alternativeLuresHtml(alternatives=[]) {
   if (!alternatives.length) return '';
   return `<div class="lure-alternatives"><span>Andre gode valg</span><div>${alternatives.map(choice => `<article><img class="alternative-lure-thumb zoomable-lure" src="${choice.image}" alt="${choice.name} – ${choice.color}" loading="lazy" tabindex="0" role="button"><small><b>${choice.name}</b>${choice.family || choice.type} · velg ${choice.weight}<em>${choice.color}</em></small></article>`).join('')}</div></div>`;
@@ -61,18 +80,37 @@ function lureHtml(lure={}) {
   const depth = lure.depth || {};
   return `<div class="lure-cell"><div class="lure-main"><img class="lure-photo zoomable-lure" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="${lure.name || `Eksempel på ${lure.color || 'sølv/blå sluk'}`}" loading="lazy" tabindex="0" role="button"><div><span class="lure-label">Anbefalt sluk</span><b>${lure.name ? `${lure.name} · ` : ''}${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><span class="lure-color">◉ ${lure.color || 'Sølv/blå'}</span><span class="depth-note">Dybde: ${depth.label || 'ukjent'}</span></div></div><small>${lure.reason || 'Tilpass innsveivingen etter forholdene.'}</small>${alternativeLuresHtml(lure.alternatives)}<div class="wobbler-rec"><img class="lure-thumb zoomable-lure" src="${wobbler.image || '/lures/blue-silver-shallow.jpg'}" alt="Eksempel på ${wobbler.color || 'sølv/blå vobbler'}" loading="lazy" tabindex="0" role="button"><div><span>Effektiv vobbler</span><b>${wobbler.type || 'Gruntgående minnowvobbler'} · ${wobbler.size || '8–11 cm'}</b><small>${wobbler.color || 'Sølv/blå med mørk rygg'}</small></div></div></div>`;
 }
+function compactPopupHtml(zone,index) {
+  const lure=zone.lure || {};
+  return `<div class="compact-popup"><div class="compact-popup-head"><span>Sone ${index+1}</span><b>${zone.name}</b></div><div class="popup-score"><span>Fiskeforhold</span><b>${zone.score}/100</b><small>Veiledende rangering – ikke fangstsannsynlighet</small></div><div class="popup-factors">${strongestFactorsHtml(zone.breakdown)}</div><div class="popup-quality"><span>Datagrunnlag</span><b>${zone.dataQuality?.level || 'Begrenset'}</b><small>${zone.dataQuality?.summary || 'Kildestatus ukjent'}</small></div><div class="popup-primary"><img class="popup-lure-thumb zoomable-lure" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="${lure.name || 'Anbefalt sluk'} – ${lure.color || 'Sølv/blå'}" tabindex="0" role="button"><div><span>Anbefalt sluk</span><b>${lure.name ? `${lure.name} · ` : ''}${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><small>${lure.color || 'Sølv/blå'}</small></div></div><button type="button" class="popup-details" data-zone="${zone.id}">Vis alle detaljer i listen</button></div>`;
+}
+function selectZone(zoneId,{scroll=false}={}) {
+  document.querySelectorAll('.zone-row').forEach(row=>row.classList.toggle('selected',row.dataset.zone===zoneId));
+  zoneLayer.eachLayer(layer=>{
+    if (!layer._zoneId || typeof layer.setStyle!=='function') return;
+    layer.setStyle({weight:layer._zoneId===zoneId?4:2,fillOpacity:(layer._zoneId===zoneId ? .48 : .34)});
+  });
+  const row=document.querySelector(`[data-zone="${zoneId}"]`);
+  if (scroll) row?.scrollIntoView({behavior:'smooth',block:'center'});
+}
 function renderZones(zones) {
   zoneLayer.clearLayers();
   if (!zones.length) {
     $('zones').innerHTML = '<div class="empty"><b>Ingen sikre soner i utsnittet</b><span>Zoom nærmere kysten eller flytt kartet litt.</span></div>';
     return;
   }
-  $('zones').innerHTML = zones.map((zone,index) => `<article class="zone-row" tabindex="0" data-zone="${zone.id}"><div class="zone-rank">${index+1}</div><div class="zone-copy"><div class="zone-title"><b>${zone.name}</b></div><p>${zone.reason}</p><div class="factors">${breakdownHtml(zone.breakdown)}</div></div>${lureHtml(zone.lure)}<div class="score" data-score="${zone.score}" aria-label="Score ${zone.score} av 100" style="--score:${zone.score};--score-color:${scoreColor(zone.score)}"></div></article>`).join('');
-  zones.forEach(zone => {
-    const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 }).bindPopup(`<b>${zone.name}</b><br>Score ${zone.score}/100<br>${zone.reason}<hr><div class="popup-tackle"><img class="popup-lure-thumb zoomable-lure" src="${zone.lure?.image || '/lures/spoon-blue-silver.jpg'}" alt="${zone.lure?.name || 'Anbefalt sluk'} – ${zone.lure?.color || 'Sølv/blå'}" tabindex="0" role="button"><div><b>Anbefalt sluk:</b><br>${zone.lure?.name ? `${zone.lure.name} · ` : ''}${zone.lure?.type || 'Smal kystsluk'} · ${zone.lure?.weight || '18–22 g'}<br>${zone.lure?.color || 'Sølv/blå'}<br><span>Dybde: ${zone.lure?.depth?.label || 'ukjent'}</span></div></div>${popupAlternativeLuresHtml(zone.lure?.alternatives)}<div class="popup-tackle"><img class="popup-lure-thumb zoomable-lure" src="${zone.lure?.wobbler?.image || '/lures/blue-silver-shallow.jpg'}" alt="Effektiv vobbler – ${zone.lure?.wobbler?.color || 'Sølv/blå'}" tabindex="0" role="button"><div><b>Effektiv vobbler:</b><br>${zone.lure?.wobbler?.type || 'Gruntgående minnowvobbler'} · ${zone.lure?.wobbler?.size || '8–11 cm'}<br>${zone.lure?.wobbler?.color || 'Sølv/blå'}</div></div>`);
+  $('zones').innerHTML = zones.map((zone,index) => `<article class="zone-row" tabindex="0" data-zone="${zone.id}"><div class="zone-rank">${index+1}</div><div class="zone-copy"><div class="zone-title"><b>Sone ${index+1} · ${zone.name}</b></div><p>${zone.reason}</p><div class="score-explanation"><span>Fiskeforhold ${zone.score}/100</span><div>${breakdownHtml(zone.breakdown)}</div></div>${dataQualityHtml(zone.dataQuality)}</div>${lureHtml(zone.lure)}<div class="score" data-score="${zone.score}" aria-label="Fiskeforhold ${zone.score} av 100, ikke fangstsannsynlighet" style="--score:${zone.score};--score-color:${scoreColor(zone.score)}"></div></article>`).join('');
+  zones.forEach((zone,index) => {
+    const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 })
+      .bindTooltip(String(index+1),{permanent:true,direction:'center',className:'zone-number'})
+      .bindPopup(compactPopupHtml(zone,index),{maxWidth:330,className:'compact-leaflet-popup'});
+    layer._zoneId=zone.id;
+    layer.on('click',()=>selectZone(zone.id,{scroll:true}));
     layer.addTo(zoneLayer);
     const row = document.querySelector(`[data-zone="${zone.id}"]`);
-    row?.addEventListener('click', () => { map.fitBounds(layer.getBounds(), { maxZoom: 16, padding:[30,30] }); layer.openPopup(); });
+    const open=()=>{ selectZone(zone.id); map.fitBounds(layer.getBounds(), { maxZoom:16, padding:[30,30] }); layer.openPopup(); };
+    row?.addEventListener('click', open);
+    row?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open();}});
   });
 }
 async function loadZones({ immediate=false }={}) {
@@ -89,7 +127,7 @@ async function loadZones({ immediate=false }={}) {
       const response = await fetch(`/api/zones?${searchParams}`, { cache:'no-store', signal:controller.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `API-feil ${response.status}`);
-      renderWeather(data.weather); renderZones(data.zones || []);
+      renderWeather(data.weather); renderSources(data.weather,data.stats || {}); renderZones(data.zones || []);
       $('mask').textContent = data.stats?.waterMaskAvailable === false ? 'Vannmasken er midlertidig utilgjengelig.' : `Aktiv · ${data.stats?.tested ?? 0} kandidater kontrollert · ${data.stats?.rejected ?? 0} forkastet`;
       $('warnings').textContent = (data.warnings || []).join(' ');
       setState('ready',`Oppdatert ${new Date().toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit'})} · ${(data.zones || []).length} soner`);
@@ -110,10 +148,11 @@ $('fishType').addEventListener('change', () => loadZones({immediate:true}));
 $('closeLureViewer').addEventListener('click', () => lureViewer.close());
 lureViewer.addEventListener('click', event => { if (event.target === lureViewer) lureViewer.close(); });
 document.addEventListener('click', event => { const image=event.target.closest?.('.zoomable-lure'); if (!image) return; event.preventDefault(); event.stopPropagation(); openLureViewer(image.currentSrc || image.src, image.alt); }, true);
+document.addEventListener('click', event => { const button=event.target.closest?.('.popup-details'); if(!button) return; event.preventDefault(); const zoneId=button.dataset.zone; map.closePopup(); selectZone(zoneId,{scroll:true}); });
 document.addEventListener('keydown', event => { const image=event.target.closest?.('.zoomable-lure'); if (image && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openLureViewer(image.currentSrc || image.src, image.alt); } });
 map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); locationMarker=L.circleMarker(event.latlng,{radius:7,color:'#fff',weight:2,fillColor:'#38d477',fillOpacity:1}).addTo(map).bindPopup('Din posisjon').openPopup(); setState('ready','Posisjon funnet. Oppdaterer soner …'); loadZones({immediate:true}); });
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=11.9', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=12.0', { updateViaCache: 'none' }).catch(() => {}));
 loadZones({immediate:true});
