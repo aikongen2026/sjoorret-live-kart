@@ -419,12 +419,22 @@ test('freshwater geometry rejects sea points and water marked no fishing', () =>
     type:'way', id:1, tags:{ natural:'water', name:'Testvannet' },
     geometry:[{lat:60,lon:10},{lat:60,lon:10.1},{lat:60.1,lon:10.1},{lat:60.1,lon:10},{lat:60,lon:10}]
   }] });
-  assert.equal(app.freshwaterAtPoint(60.05,10.05,openLake)?.name, 'Testvannet');
+  assert.equal(app.freshwaterAtPoint(60.05,10.05,openLake).name, 'Testvannet');
   assert.equal(app.freshwaterAtPoint(59.9,10.05,openLake), null);
 
   const closedLake = app.parseFreshwaterAreas({ elements: [{
     type:'way', id:2, tags:{ natural:'water', name:'Drikkevann', fishing:'no' },
     geometry:[{lat:60,lon:10},{lat:60,lon:10.1},{lat:60.1,lon:10.1},{lat:60.1,lon:10},{lat:60,lon:10}]
   }] });
-  assert.equal(app.freshwaterAtPoint(60.05,10.05,closedLake)?.restricted, true);
+  assert.equal(app.freshwaterAtPoint(60.05,10.05,closedLake).restricted, true);
+});
+
+test('lightweight OSM fallback converts named water bounds and preserves fishing restrictions', () => {
+  const oyeren=app.parseNominatimWater({category:'water',type:'reservoir',name:'Øyeren',boundingbox:['59.64','59.91','11.09','11.27'],extratags:{natural:'water'}});
+  assert.equal(oyeren.name,'Øyeren');
+  assert.equal(oyeren.restricted,false);
+  assert.equal(app.freshwaterAtPoint(59.8,11.2,[oyeren]).name,'Øyeren');
+  const closed=app.parseNominatimWater({category:'water',type:'reservoir',name:'Maridalsvannet',boundingbox:['59.96','60.0','10.75','10.80'],extratags:{fishing:'no',access:'no'}});
+  assert.equal(closed.restricted,true);
+  assert.equal(app.parseNominatimWater({category:null,type:null,boundingbox:null}),null);
 });

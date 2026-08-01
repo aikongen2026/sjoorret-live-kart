@@ -405,6 +405,45 @@ function postFormText(url,form,timeoutMs=14000) {
     request.on('error',reject); request.end(body);
   });
 }
+function getJsonHttps(url,timeoutMs=9000) {
+  return new Promise((resolve,reject)=>{
+    const request=https.get(url,{headers:{'User-Agent':MET_USER_AGENT,'Accept':'application/json'}},response=>{
+      const chunks=[]; let size=0;
+      response.on('data',chunk=>{size+=chunk.length;if(size>2*1024*1024)request.destroy(new Error('OSM-responsen var for stor'));else chunks.push(chunk);});
+      response.on('end',()=>{
+        const text=Buffer.concat(chunks).toString('utf8');
+        if(response.statusCode<200||response.statusCode>=300) reject(new Error(`OSM punktoppslag svarte ${response.statusCode}`));
+        else { try { resolve(JSON.parse(text)); } catch(error) { reject(error); } }
+      });
+    });
+    request.setTimeout(timeoutMs,()=>request.destroy(new Error('OSM punktoppslag fikk tidsavbrudd')));
+    request.on('error',reject);
+  });
+}
+function parseNominatimWater(data) {
+  if(!data||!Array.isArray(data.boundingbox)||data.boundingbox.length!==4) return null;
+  const tags=data.extratags||{};
+  const waterTypes=new Set(['water','lake','reservoir','river','stream','canal','pond','basin']);
+  if(data.category!=='water'&&tags.natural!=='water'&&!tags.waterway&&!waterTypes.has(data.type)) return null;
+  const [south,north,west,east]=data.boundingbox.map(Number);
+  if(![south,north,west,east].every(Number.isFinite)||south>=north||west>=east) return null;
+  return {
+    id:`${data.osm_type||'osm'}:${data.osm_id||data.place_id||'water'}`,
+    name:data.name||String(data.display_name||'').split(',')[0]||'Navnløst vann',
+    tags,
+    restricted:tags.fishing==='no'||tags.access==='no'||tags.access==='private',
+    ring:[{lat:south,lon:west},{lat:south,lon:east},{lat:north,lon:east},{lat:north,lon:west},{lat:south,lon:west}],
+    lookup:'nominatim'
+  };
+}
+async function fetchNominatimWater({west,south,east,north}) {
+  const lat=(south+north)/2,lon=(west+east)/2;
+  const key=`freshwater-point:${lat.toFixed(3)},${lon.toFixed(3)}`;
+  return cached(key,30*60*1000,async()=>{
+    const params=new URLSearchParams({format:'jsonv2',lat:String(lat),lon:String(lon),zoom:'14',layer:'natural',addressdetails:'0',extratags:'1'});
+    return parseNominatimWater(await getJsonHttps(`https://nominatim.openstreetmap.org/reverse?${params}`,9000));
+  });
+}
 async function fetchFreshwaterAreas({west,south,east,north}) {
   const key=`freshwater:${west.toFixed(3)},${south.toFixed(3)},${east.toFixed(3)},${north.toFixed(3)}`;
   return cached(key,30*60*1000,async()=>{
@@ -528,9 +567,16 @@ async function generateZones({west,south,east,north,zoom}, currentWeather, selec
   const waterType = freshwater ? 'freshwater' : 'saltwater';
   const width=east-west,height=north-south,zones=[]; let tested=0,rejected=0,maskError=null,depthError=null,freshwaterMaskError=null,restrictedWaters=0;
   let freshwaterAreas=[];
+  let freshwaterLookup='OSM geometri';
   if(freshwater) {
     try { freshwaterAreas=await fetchFreshwaterAreas({west,south,east,north}); }
-    catch(error) { freshwaterMaskError=error.message||String(error); }
+    catch(error) {
+      try {
+        const fallback=await fetchNominatimWater({west,south,east,north});
+        freshwaterAreas=fallback?[fallback]:[];
+        freshwaterLookup='OSM punktkontroll';
+      } catch(fallbackError) { freshwaterMaskError=fallbackError.message||error.message||String(fallbackError); }
+    }
   }
   for (const point of freshwaterMaskError ? [] : candidateGrid(west,south,east,north)) {
     if (zones.length>=MAX_ZONE_COUNT) break; tested++;
@@ -564,8 +610,8 @@ async function generateZones({west,south,east,north,zoom}, currentWeather, selec
     delete zone._point; delete zone._coast; delete zone._exposure; delete zone._hour; delete zone._freshwaterName;
   }));
   const warning=[maskError?'Vannmasken svarte ikke; prøv igjen om litt.':null,freshwaterMaskError?'OSM-kontrollen for ferskvann svarte ikke; ingen ferskvannssoner vises før kontrollen virker.':null,restrictedWaters?'Vann merket med fiskeforbud eller adgangsforbud er filtrert bort.':null,depthError?'Dybdeestimat er midlertidig utilgjengelig for noen soner.':null].filter(Boolean).join(' ')||null;
-  const source=freshwater?'OSM registrerte ferskvannsobjekter og vannkant + MET Norway':'OSM vannmaske + Kartverket sjøkart + EMODnet dybdeestimat + MET Norway';
-  return {zones:zones.sort((a,b)=>b.score-a.score),stats:{tested,rejected,strictLandmask:true,waterType,waterMaskAvailable:!maskError&&!freshwaterMaskError,freshwaterAreas:freshwater?freshwaterAreas.length:null,restrictedWaters,depthAvailable:zones.filter(z=>Number.isFinite(z.depth?.meters)).length,depthResolutionM:freshwater?null:125,warning,generatedAt:new Date().toISOString(),source}};
+  const source=freshwater?`${freshwaterLookup} og vannkant + MET Norway`:'OSM vannmaske + Kartverket sjøkart + EMODnet dybdeestimat + MET Norway';
+  return {zones:zones.sort((a,b)=>b.score-a.score),stats:{tested,rejected,strictLandmask:true,waterType,waterMaskAvailable:!maskError&&!freshwaterMaskError,freshwaterAreas:freshwater?freshwaterAreas.length:null,freshwaterLookup:freshwater?freshwaterLookup:null,restrictedWaters,depthAvailable:zones.filter(z=>Number.isFinite(z.depth?.meters)).length,depthResolutionM:freshwater?null:125,warning,generatedAt:new Date().toISOString(),source}};
 }
 
 function send(res, code, data, type='application/json; charset=utf-8', extraHeaders={}) {
@@ -586,4 +632,4 @@ function createServer() {
 }
 function startServer(port=PORT) { const server=createServer(); return server.listen(port,()=>{ let ip='localhost'; for(const list of Object.values(os.networkInterfaces())) for(const item of list||[]) if(item.family==='IPv4'&&!item.internal) ip=item.address; console.log(`Sjøørret Live Kart v11 kjører på http://${ip}:${port}`); }); }
 if(require.main===module) startServer();
-module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,isFreshwaterFish,parseFreshwaterAreas,freshwaterAtPoint,fetchFreshwaterAreas,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};
+module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,isFreshwaterFish,parseFreshwaterAreas,freshwaterAtPoint,parseNominatimWater,fetchNominatimWater,fetchFreshwaterAreas,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};
