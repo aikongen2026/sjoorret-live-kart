@@ -6,7 +6,7 @@ const os = require('os');
 const { PNG } = require('pngjs');
 
 const PORT = Number(process.env.PORT || 3000);
-const MET_USER_AGENT = process.env.MET_USER_AGENT || 'sjoorret-live-kart/11 (+https://github.com/aikongen2026/sjoorret-live-kart)';
+const MET_USER_AGENT = process.env.MET_USER_AGENT || 'sjoorret-live-kart/11.1 (jan.skrotnes@straye.no; https://github.com/aikongen2026/sjoorret-live-kart)';
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_ZONE_COUNT = 12;
 const MAX_ZONE_CANDIDATES = 180;
@@ -440,7 +440,7 @@ async function fetchNominatimWater({west,south,east,north}) {
   const lat=(south+north)/2,lon=(west+east)/2;
   const key=`freshwater-point:${lat.toFixed(3)},${lon.toFixed(3)}`;
   return cached(key,30*60*1000,async()=>{
-    const params=new URLSearchParams({format:'jsonv2',lat:String(lat),lon:String(lon),zoom:'14',layer:'natural',addressdetails:'0',extratags:'1'});
+    const params=new URLSearchParams({format:'jsonv2',lat:String(lat),lon:String(lon),zoom:'14',layer:'natural',addressdetails:'0',extratags:'1',email:'jan.skrotnes@straye.no'});
     return parseNominatimWater(await getJsonHttps(`https://nominatim.openstreetmap.org/reverse?${params}`,9000));
   });
 }
