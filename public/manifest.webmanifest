@@ -1,7 +1,7 @@
 {
-  "name": "Fiske Live Kart v11",
-  "short_name": "Fiskekart v11",
-  "description": "Kartbaserte fiskeområder og slukanbefalinger for sjø og ferskvann i Norge.",
+  "name": "Fiste guiden",
+  "short_name": "Fiste guiden",
+  "description": "Fiste guiden viser kartbaserte fiskeområder og slukanbefalinger for sjø og ferskvann i Norge.",
   "lang": "no",
   "start_url": "/",
   "scope": "/",

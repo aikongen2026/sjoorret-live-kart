@@ -1,12 +1,12 @@
 @echo off
 chcp 65001 >nul
-title Sjøørret Live Kart v11
+title Fiste guiden
 cd /d "%~dp0"
 
 where node >nul 2>nul
 if %errorlevel%==0 (
-  echo Starter Sjøørret Live Kart v11...
-  start "Sjøørret v11-server" /min cmd /c "node server.js"
+  echo Starter Fiste guiden...
+  start "Fiste guiden-server" /min cmd /c "node server.js"
   timeout /t 2 /nobreak >nul
   start "" http://localhost:3000
   echo.

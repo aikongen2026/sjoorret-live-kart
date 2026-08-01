@@ -1,4 +1,4 @@
-# Fiske Live Kart v11 – REV 05
+# Fiste guiden – REV 05
 
 Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
 

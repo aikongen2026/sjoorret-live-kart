@@ -63,7 +63,7 @@ test('bounded cache evicts old entries and expires TTL', async () => {
   assert.equal(cache.get('a'), undefined);
 });
 
-test('health and static shell advertise v11', async (t) => {
+test('health keeps the v11 API version and static shell advertises Fiste guiden', async (t) => {
   const server = app.createServer();
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => server.close());
@@ -71,7 +71,7 @@ test('health and static shell advertise v11', async (t) => {
   const health = await fetch(`http://127.0.0.1:${port}/api/health`).then(r => r.json());
   assert.deepEqual(health, { ok: true, version: 'v11-rev05-ferskvann' });
   const html = await fetch(`http://127.0.0.1:${port}/`).then(r => r.text());
-  assert.match(html, /v11/);
+  assert.match(html, /Fiste guiden/);
   assert.match(html, /offline/i);
   const swResponse = await fetch(`http://127.0.0.1:${port}/sw.js`);
   assert.match(swResponse.headers.get('cache-control') || '', /no-cache|no-store/);
@@ -84,7 +84,7 @@ test('PWA shell has a real cache and never caches API responses', () => {
   assert.match(sw, /caches\.open/);
   assert.match(sw, /\/api\//);
   assert.match(sw, /network|fetch/i);
-  assert.match(manifest.name, /v11/i);
+  assert.equal(manifest.name, 'Fiste guiden');
 });
 
 test('map invalidates Leaflet size when the responsive container changes', () => {
@@ -101,7 +101,7 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /app\.js\?v=13\.3/);
+  assert.match(html, /app\.js\?v=13\.4/);
   assert.match(sw, /fredrikstad/);
 });
 
@@ -207,6 +207,15 @@ test('generated lure and recommended fly illustrations exist, render as SVG, and
     assert.match(svg,/^<svg[^>]+role="img"/);
     assert.match(svg,/<\/svg>$/);
   }
+});
+
+test('app name is Fiste guiden in the page and install manifest', () => {
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'..','public','manifest.webmanifest'),'utf8'));
+  assert.match(html,/<title>Fiste guiden<\/title>/);
+  assert.match(html,/<h1>Fiste guiden <span>REV 05<\/span><\/h1>/);
+  assert.equal(manifest.name,'Fiste guiden');
+  assert.equal(manifest.short_name,'Fiste guiden');
 });
 
 test('the user lure catalog contains 18 distinct photographed lures', () => {
