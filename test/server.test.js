@@ -101,7 +101,7 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /app\.js\?v=13\.5/);
+  assert.match(html, /app\.js\?v=13\.6/);
   assert.match(sw, /fredrikstad/);
 });
 
@@ -231,6 +231,15 @@ test('zone UI renders generic combinations, lure height and dropper fly details'
   assert.match(js,/lure\.genericCombinations/);
   assert.match(js,/lure\.presentation/);
   assert.match(js,/lure\.dropperFly/);
+});
+
+test('narrow lure columns collapse detailed recommendation grids by their container width', () => {
+  const css=fs.readFileSync(path.join(__dirname,'..','public','style.css'),'utf8');
+  assert.match(css,/\.lure-cell\{[^}]*container-type:inline-size/);
+  assert.match(css,/\.presentation-tactics[^}]*grid-template-columns:1fr/);
+  assert.match(css,/\.generic-combinations\{[^}]*grid-template-columns:1fr/);
+  assert.match(css,/@container\s+lure-card\s*\(min-width:280px\)/);
+  assert.match(css,/@container\s+lure-card\s*\(min-width:440px\)/);
 });
 
 test('generated lure and recommended fly illustrations exist, render as SVG, and the rejected color term is removed', () => {
