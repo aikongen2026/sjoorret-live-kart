@@ -1,6 +1,6 @@
-const CACHE = 'fiste-guiden-rev05-fredrikstad-responsive-shell-13-6';
+const CACHE = 'fiste-guiden-rev05-fredrikstad-network-first-13-7';
 const SHELL = [
-  '/', '/index.html', '/style.css?v=13.6', '/app.js?v=13.6', '/manifest.webmanifest?v=13.6', '/icon.svg',
+  '/', '/index.html', '/style.css?v=13.7', '/app.js?v=13.7', '/manifest.webmanifest?v=13.7', '/icon.svg',
   '/lures/spoon-light-silver.jpg', '/lures/spoon-warm-copper.jpg', '/lures/spoon-blue-silver.jpg', '/lures/spoon-compact-spotted.jpg',
   '/lures/blue-silver-shallow.jpg', '/lures/black-silver-diving.jpg', '/lures/gold-orange-lowlight.jpg', '/lures/trout-natural.jpg',
   '/lures/user/a01-silver-scale-spoon.jpg', '/lures/user/a02-gold-stripe-caster.jpg', '/lures/user/a06-blue-spotted-stickbait.jpg',
@@ -15,7 +15,10 @@ const SHELL = [
   '/lures/generated/blade-bait.svg', '/lures/generated/pike-shad.svg', '/lures/generated/spinnerbait.svg',
   '/lures/generated/fly-shrimp-dark.svg', '/lures/generated/fly-shrimp-light.svg',
   '/lures/generated/fly-baitfish-dark.svg', '/lures/generated/fly-baitfish-light.svg',
-  '/lures/generated/fly-wet-dark.svg', '/lures/generated/fly-wet-light.svg'
+  '/lures/generated/fly-wet-dark.svg', '/lures/generated/fly-wet-light.svg',
+  '/lures/open/catalog.json', '/lures/open/inline-spinner.jpg', '/lures/open/spinnerbait.jpg',
+  '/lures/open/spoon.jpg', '/lures/open/weedless-spoon.jpg', '/lures/open/soft-shad.jpg',
+  '/lures/open/micro-jig.jpg', '/lures/open/wobbler.jpg', '/lures/open/lure-reference.jpg'
 ];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -32,6 +35,14 @@ self.addEventListener('fetch', event => {
     return;
   }
   if (url.origin === self.location.origin) {
+    const networkFirst = request.mode === 'navigate' || ['style','script'].includes(request.destination);
+    if (networkFirst) {
+      event.respondWith(fetch(request).then(response => {
+        if (response.ok) caches.open(CACHE).then(cache => cache.put(request, response.clone()));
+        return response;
+      }).catch(() => caches.match(request).then(cached => cached || caches.match('/index.html'))));
+      return;
+    }
     event.respondWith(caches.match(request).then(cached => cached || fetch(request).then(response => {
       if (response.ok) caches.open(CACHE).then(cache => cache.put(request, response.clone()));
       return response;

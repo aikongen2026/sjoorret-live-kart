@@ -1,6 +1,7 @@
 const map = L.map('map', { zoomControl: true }).setView([59.21, 10.93], 12);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
 const seaChartLayer = L.tileLayer('https://opencache.statkart.no/gatekeeper/gk/gk.open_gmaps?layers=sjokartraster&zoom={z}&x={x}&y={y}', { opacity: .56, maxZoom: 18, attribution: 'Kartverket' }).addTo(map);
+const nveDepthLayer = L.tileLayer.wms('https://kart.nve.no/enterprise/services/Innsjodatabase2/MapServer/WMSServer', { layers: 'DybdeKurve,DybdePunkt', format: 'image/png', transparent: true, version: '1.3.0', maxZoom: 18, attribution: 'Kilde: <a href="https://data.norge.no/nb/datasets/a797219c-8378-3914-9bde-1ae4db09e370/dybdekart" target="_blank" rel="noopener">NVE – Innsjødatabase/Dybdekart</a>' });
 
 const $ = id => document.getElementById(id);
 const zoneLayer = L.layerGroup().addTo(map);
@@ -156,13 +157,16 @@ function renderSources(weather,stats={}) {
   const modelTime=formatSourceTime(weather?.observedAt);
   const analysisTime=formatSourceTime(stats.generatedAt);
   const freshwater=stats.waterType === 'freshwater';
-  $('analysisSources').innerHTML=`<b>Værmodell:</b> ${weather?.source || 'MET Norway'} · ${modelTime}<br><b>Analyse:</b> ${analysisTime} · ${freshwater ? 'OSM-vannmaske og innsjø-/elvebredde · innlandsdybde ikke tilgjengelig' : 'OSM-kystgeometri · EMODnet-dybde der tilgjengelig'}`;
+  $('analysisSources').innerHTML=`<b>Værmodell:</b> ${weather?.source || 'MET Norway'} · ${modelTime}<br><b>Analyse:</b> ${analysisTime} · ${freshwater ? 'OSM-vannmaske · valgfritt NVE-dybdekart der NVE har publisert kurver/punkter; ingen innlandsdybde antas' : 'OSM-kystgeometri · EMODnet-dybde der tilgjengelig'}`;
 }
 
 function updateWaterModeUI() {
   const freshwater=freshwaterFishTypes.has($('fishType').value);
   if (freshwater && map.hasLayer(seaChartLayer)) map.removeLayer(seaChartLayer);
   if (!freshwater && !map.hasLayer(seaChartLayer)) seaChartLayer.addTo(map);
+  $('nveDepthToggle').hidden=!freshwater;
+  if(!freshwater&&map.hasLayer(nveDepthLayer)) map.removeLayer(nveDepthLayer);
+  if(!freshwater){$('nveDepthToggle').setAttribute('aria-pressed','false');$('nveDepthToggle').classList.remove('depth-active');}
   $('analysisMode').textContent=freshwater ? 'Ferskvann · MET Norway · OSM' : 'Sjøanalyse · MET Norway · Kartverket';
   $('mask').textContent=freshwater ? 'Kontrollerer innsjø/elv og vannkant …' : 'Kontrollerer sjø og kyst …';
   return freshwater;
@@ -177,7 +181,7 @@ function popupAlternativeLuresHtml(alternatives=[]) {
 }
 function genericCombinationsHtml(combinations=[]) {
   if(!combinations.length) return '';
-  return `<div class="generic-combinations"><span>Andre slukkombinasjoner</span>${combinations.map(choice=>`<article><img class="generic-lure-image zoomable-lure" src="${choice.image}" alt="Illustrasjon av ${choice.type} – ${choice.color}" loading="lazy" tabindex="0" role="button"><div><b>${choice.type} · ${choice.weight}</b><em>◉ ${choice.color}</em><small>${choice.rigging}<br>${choice.use}</small></div></article>`).join('')}</div>`;
+  return `<div class="generic-combinations"><span>Andre slukkombinasjoner</span>${combinations.map(choice=>{const photo=choice.photo||{};const credit=photo.sourcePage?`<a class="lure-credit" href="${escapeHtml(photo.sourcePage)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(photo.usageNote||'Referansefoto for agntype og form')}">Ekte referansefoto · ${escapeHtml(photo.creator||'ukjent fotograf')} · ${escapeHtml(photo.license||'kilde')}</a>`:'';return `<article><img class="generic-lure-image zoomable-lure" src="${escapeHtml(choice.image)}" alt="Ekte referansefoto av ${escapeHtml(choice.type)}" loading="lazy" tabindex="0" role="button"><div><b>${escapeHtml(choice.type)} · ${escapeHtml(choice.weight)}</b><em>◉ ${escapeHtml(choice.color)}</em><small>${escapeHtml(choice.rigging)}<br>${escapeHtml(choice.use)}</small>${credit}</div></article>`;}).join('')}</div>`;
 }
 function presentationTacticsHtml(lure={}) {
   const presentation=lure.presentation||{};
@@ -259,6 +263,7 @@ map.on('dragend zoomend', () => loadZones());
 $('locate').addEventListener('click', () => { setState('locating','Finner posisjonen din …'); map.locate({ setView:true, maxZoom:14, enableHighAccuracy:true }); });
 $('retry').addEventListener('click', () => loadZones({immediate:true}));
 $('fishType').addEventListener('change', () => { $('catchFish').value=$('fishType').value; updateWaterModeUI(); loadZones({immediate:true}); });
+$('nveDepthToggle').addEventListener('click',()=>{const enable=!map.hasLayer(nveDepthLayer);if(enable)nveDepthLayer.addTo(map);else map.removeLayer(nveDepthLayer);$('nveDepthToggle').setAttribute('aria-pressed',String(enable));$('nveDepthToggle').classList.toggle('depth-active',enable);$('nveDepthToggle').textContent=enable?'Skjul NVE-dybde':'NVE dybdekart';});
 $('closeLureViewer').addEventListener('click', () => lureViewer.close());
 lureViewer.addEventListener('click', event => { if (event.target === lureViewer) lureViewer.close(); });
 document.addEventListener('click', event => { const image=event.target.closest?.('.zoomable-lure'); if (!image) return; event.preventDefault(); event.stopPropagation(); openLureViewer(image.currentSrc || image.src, image.alt); }, true);
@@ -268,7 +273,7 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.6', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.7', { updateViaCache: 'none' }).catch(() => {}));
 initCatchLog();
 updateWaterModeUI();
 loadZones({immediate:true});

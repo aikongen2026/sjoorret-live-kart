@@ -8,6 +8,8 @@ const { PNG } = require('pngjs');
 const PORT = Number(process.env.PORT || 3000);
 const MET_USER_AGENT = process.env.MET_USER_AGENT || 'sjoorret-live-kart/11.1 (jan.skrotnes@straye.no; https://github.com/aikongen2026/sjoorret-live-kart)';
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const OPEN_LURE_PHOTOS = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR,'lures','open','catalog.json'),'utf8')).photos;
+const OPEN_LURE_PHOTO_BY_ID = Object.freeze(Object.fromEntries(OPEN_LURE_PHOTOS.map(photo=>[photo.id,photo])));
 const MAX_ZONE_COUNT = 12;
 const MAX_ZONE_CANDIDATES = 180;
 const FISH_TYPES = Object.freeze({
@@ -244,31 +246,34 @@ function genericLureCombinations({fishType,lowLight,cloud,exposed}) {
   const bright=cloud<35&&!lowLight;
   const choices={
     sjoorret:[
-      {type:'Inline-spinner med smalt blad',weight:'8–15 g',color:lowLight?'Kobber/sort med rødt punkt':'Sølv/blå eller sølv/grønn',image:'/lures/generated/inline-spinner.svg',rigging:'Enkeltagn på fortom',use:'Jevn innsveiving med korte spinnstopp'},
-      {type:'Myk shad på lett jigghode',weight:'7–10 cm · 5–12 g hode',color:bright?'Perlemor/oliven':'Kobber/brun med mørk rygg',image:'/lures/generated/light-shad.svg',rigging:'Rettmontert shad med én krok',use:'Rolige løft over bunn, tang og renner'}
+      {type:'Inline-spinner med smalt blad',weight:'8–15 g',color:lowLight?'Kobber/sort med rødt punkt':'Sølv/blå eller sølv/grønn',photoId:'inline-spinner',rigging:'Enkeltagn på fortom',use:'Jevn innsveiving med korte spinnstopp'},
+      {type:'Myk shad på lett jigghode',weight:'7–10 cm · 5–12 g hode',color:bright?'Perlemor/oliven':'Kobber/brun med mørk rygg',photoId:'soft-shad',rigging:'Rettmontert shad med én krok',use:'Rolige løft over bunn, tang og renner'}
     ],
     makrell:[
-      {type:'Slank casting-jig',weight:exposed?'30–45 g':'20–35 g',color:lowLight?'Sølv/rosa med kontrast':'Sølv/blå eller holografisk sølv',image:'/lures/generated/casting-jig.svg',rigging:'Enkeltagn eller enkel assistkrok',use:'Tell ned og sveiv raskt gjennom stimen'},
-      {type:'Sildesluk med prismatisk side',weight:'18–35 g',color:bright?'Blank sølv/blå':'Sølv/grønn eller sølv/rosa',image:'/lures/generated/herring-spoon.svg',rigging:'Enkeltagn på slitesterk fortom',use:'Varier mellom rask innsveiving og korte synkepauser'}
+      {type:'Slank metallsluk / casting-jig-type',weight:exposed?'30–45 g':'20–35 g',color:lowLight?'Sølv/rosa med kontrast':'Sølv/blå eller holografisk sølv',photoId:'spoon',rigging:'Enkeltagn eller enkel assistkrok',use:'Tell ned og sveiv raskt gjennom stimen'},
+      {type:'Sildelignende skjesluk',weight:'18–35 g',color:bright?'Blank sølv/blå':'Sølv/grønn eller sølv/rosa',photoId:'spoon',rigging:'Enkeltagn på slitesterk fortom',use:'Varier mellom rask innsveiving og korte synkepauser'}
     ],
     sei:[
-      {type:'Myk shad på jigghode',weight:'10–15 cm · 20–50 g hode',color:lowLight?'Sort/lilla over sølv':'Blå/sølv eller seifarget rygg',image:'/lures/generated/heavy-shad.svg',rigging:'Rettmontert shad med kraftig enkeltkrok',use:'Fisk trinnvis ned mot kanter og dypere vann'},
-      {type:'Bladpilk eller kompakt casting-jig',weight:exposed?'40–70 g':'30–55 g',color:bright?'Sølv/blå':'Sølv med mørk eller selvlysende kontrast',image:'/lures/generated/blade-jig.svg',rigging:'Enkel assistkrok for mindre hekting',use:'Kontrollerte løft og fall i midtre/nedre vannlag'}
+      {type:'Myk shad på jigghode',weight:'10–15 cm · 20–50 g hode',color:lowLight?'Sort/lilla over sølv':'Blå/sølv eller seifarget rygg',photoId:'soft-shad',rigging:'Rettmontert shad med kraftig enkeltkrok',use:'Fisk trinnvis ned mot kanter og dypere vann'},
+      {type:'Kompakt metallsluk / casting-jig-type',weight:exposed?'40–70 g':'30–55 g',color:bright?'Sølv/blå':'Sølv med mørk eller selvlysende kontrast',photoId:'spoon',rigging:'Enkel assistkrok for mindre hekting',use:'Kontrollerte løft og fall i midtre/nedre vannlag'}
     ],
     orret:[
-      {type:'Liten inline-spinner',weight:'4–8 g',color:lowLight?'Kobber/sort':'Sølv/blå eller sølv/grønn',image:'/lures/generated/small-spinner.svg',rigging:'Enkeltagn på tynn fortom',use:'Jevn fart langs land, innløp og odder'},
-      {type:'Mikrojigg eller liten shad',weight:'4–7 cm · 3–7 g hode',color:bright?'Naturfarget oliven/perlemor':'Brun, kobber eller mørk rygg',image:'/lures/generated/micro-shad.svg',rigging:'Lett jigghode med én krok',use:'Korte løft og pauser langs bunnkanter'}
+      {type:'Liten inline-spinner',weight:'4–8 g',color:lowLight?'Kobber/sort':'Sølv/blå eller sølv/grønn',photoId:'inline-spinner',rigging:'Enkeltagn på tynn fortom',use:'Jevn fart langs land, innløp og odder'},
+      {type:'Mikrojigg eller liten shad',weight:'4–7 cm · 3–7 g hode',color:bright?'Naturfarget oliven/perlemor':'Brun, kobber eller mørk rygg',photoId:'micro-jig',rigging:'Lett jigghode med én krok',use:'Korte løft og pauser langs bunnkanter'}
     ],
     abbor:[
-      {type:'Liten shad på jigghode',weight:'5–9 cm · 4–10 g hode',color:cloud>=60?'Chartreuse/brun kontrast':'Naturfarget grønn/perlemor',image:'/lures/generated/perch-shad.svg',rigging:'Rettmontert shad med én krok',use:'Små hopp langs bunn, brygger og sivkanter'},
-      {type:'Liten spinner eller blade bait',weight:'5–12 g',color:lowLight?'Kobber/oransje':'Sølv/grønn eller abborfarget',image:'/lures/generated/blade-bait.svg',rigging:'Enkeltagn på fluorokarbonfortom',use:'Søk raskt i midtre vannlag, senk farten ved kontakt'}
+      {type:'Liten shad på jigghode',weight:'5–9 cm · 4–10 g hode',color:cloud>=60?'Chartreuse/brun kontrast':'Naturfarget grønn/perlemor',photoId:'soft-shad',rigging:'Rettmontert shad med én krok',use:'Små hopp langs bunn, brygger og sivkanter'},
+      {type:'Liten spinner eller blade bait',weight:'5–12 g',color:lowLight?'Kobber/oransje':'Sølv/grønn eller abborfarget',photoId:'inline-spinner',rigging:'Enkeltagn på fluorokarbonfortom',use:'Søk raskt i midtre vannlag, senk farten ved kontakt'}
     ],
     gjedde:[
-      {type:'Stor myk shad',weight:'12–20 cm · 20–50 g samlet',color:cloud>=50?'Mørk rygg med chartreuse/oransje':'Mort- eller abborfarget',image:'/lures/generated/pike-shad.svg',rigging:'Én egnet krok-rigg og bitefast fortom',use:'Rolig over vegetasjon og langs dypkanter'},
-      {type:'Spinnerbait med én krok',weight:'15–30 g',color:lowLight?'Sort/oransje eller kobber':'Hvit/sølv eller grønn/gul',image:'/lures/generated/spinnerbait.svg',rigging:'Bitefast fortom; hold over vegetasjonen',use:'Jevn innsveiving gjennom sivbukter og grunne kanter'}
+      {type:'Stor myk shad',weight:'12–20 cm · 20–50 g samlet',color:cloud>=50?'Mørk rygg med chartreuse/oransje':'Mort- eller abborfarget',photoId:'soft-shad',rigging:'Én egnet krok-rigg og bitefast fortom',use:'Rolig over vegetasjon og langs dypkanter'},
+      {type:'Spinnerbait med én krok',weight:'15–30 g',color:lowLight?'Sort/oransje eller kobber':'Hvit/sølv eller grønn/gul',photoId:'spinnerbait',rigging:'Bitefast fortom; hold over vegetasjonen',use:'Jevn innsveiving gjennom sivbukter og grunne kanter'}
     ]
   };
-  return choices[fishType]||choices.sjoorret;
+  return (choices[fishType]||choices.sjoorret).map(({photoId,...choice})=>{
+    const photo=OPEN_LURE_PHOTO_BY_ID[photoId];
+    return {...choice,image:photo.localPath,photo:{sourcePage:photo.sourcePage,creator:photo.creator,license:photo.license,usageNote:photo.usageNote}};
+  });
 }
 
 function lurePresentationAdvice({fishType,depthMeters,lowLight,wind,exposed}) {

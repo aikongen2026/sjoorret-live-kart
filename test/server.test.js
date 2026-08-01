@@ -83,7 +83,9 @@ test('PWA shell has a real cache and never caches API responses', () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.webmanifest'), 'utf8'));
   assert.match(sw, /caches\.open/);
   assert.match(sw, /\/api\//);
-  assert.match(sw, /network|fetch/i);
+  assert.match(sw, /request\.mode\s*===\s*'navigate'/);
+  assert.match(sw, /\['style','script'\]\.includes\(request\.destination\)/);
+  assert.match(sw, /networkFirst/);
   assert.equal(manifest.name, 'Fiste guiden');
 });
 
@@ -101,7 +103,7 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /app\.js\?v=13\.6/);
+  assert.match(html, /app\.js\?v=13\.7/);
   assert.match(sw, /fredrikstad/);
 });
 
@@ -201,8 +203,10 @@ test('all species receive generic lure combinations, water-column advice and dro
     const lure=app.recommendLure({fishType,hour:6,cloud:75,wind:3,temp:10,exposure:.4,coastQuality:.7,depthMeters:14});
     assert.equal(lure.genericCombinations.length,2,fishType);
     for(const choice of lure.genericCombinations) {
-      assert.deepEqual(Object.keys(choice).sort(),['color','image','rigging','type','use','weight'].sort());
-      for(const value of Object.values(choice)) assert.equal(typeof value,'string');
+      assert.deepEqual(Object.keys(choice).sort(),['color','image','photo','rigging','type','use','weight'].sort());
+      for(const key of ['color','image','rigging','type','use','weight']) assert.equal(typeof choice[key],'string');
+      assert.deepEqual(Object.keys(choice.photo).sort(),['creator','license','sourcePage','usageNote'].sort());
+      for(const value of Object.values(choice.photo)) assert.equal(typeof value,'string');
     }
     assert.deepEqual(Object.keys(lure.presentation).sort(),['band','basis','method','reference'].sort());
     assert.match(lure.presentation.basis,/tommelfingerregel|søketrinn/i);
@@ -233,42 +237,52 @@ test('zone UI renders generic combinations, lure height and dropper fly details'
   assert.match(js,/lure\.dropperFly/);
 });
 
-test('narrow lure columns collapse detailed recommendation grids by their container width', () => {
+test('narrow lure columns use a readable one-column layout without container-query dependence', () => {
   const css=fs.readFileSync(path.join(__dirname,'..','public','style.css'),'utf8');
-  assert.match(css,/\.lure-cell\{[^}]*container-type:inline-size/);
-  assert.match(css,/\.presentation-tactics[^}]*grid-template-columns:1fr/);
+  assert.match(css,/\.presentation-tactics\{[^}]*grid-template-columns:1fr/);
   assert.match(css,/\.generic-combinations\{[^}]*grid-template-columns:1fr/);
-  assert.match(css,/@container\s+lure-card\s*\(min-width:280px\)/);
-  assert.match(css,/@container\s+lure-card\s*\(min-width:440px\)/);
+  assert.match(css,/\.generic-combinations article\{[^}]*grid-template-columns:72px minmax\(0,1fr\)/);
+  assert.match(css,/\.generic-lure-image\{[^}]*width:72px[^}]*height:48px/);
+  assert.match(css,/@media\(max-width:430px\).*?\.generic-combinations article\{grid-template-columns:1fr\}/s);
+  assert.match(css,/@media\(min-width:1200px\)\{main\{[^}]*720px/);
+  assert.match(css,/@media\(min-width:851px\) and \(max-width:1199px\)[^{]*\{[^}]*\.zone-columns\{display:none\}/);
+  assert.match(css,/\.lure-cell\{grid-column:2\/4;grid-row:2\}/);
+  assert.doesNotMatch(css,/container-name:lure-card|@container lure-card/);
 });
 
-test('generated lure and recommended fly illustrations exist, render as SVG, and the rejected color term is removed', () => {
-  const appJs=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
-  const serverSource=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');
+test('open lure photo catalog is local, attributed, and used for every generic recommendation', () => {
+  const root=path.join(__dirname,'..');
+  const appJs=fs.readFileSync(path.join(root,'public','app.js'),'utf8');
+  const serverSource=fs.readFileSync(path.join(root,'server.js'),'utf8');
+  const catalog=JSON.parse(fs.readFileSync(path.join(root,'public','lures','open','catalog.json'),'utf8'));
   const rejectedColorTerm=['motor','olje'].join('');
   assert.equal(`${serverSource}\n${appJs}`.toLowerCase().includes(rejectedColorTerm),false);
-  assert.match(appJs,/generic-lure-image/);
-  assert.match(appJs,/dropper-fly-image/);
-  const checked=new Set();
-  for (const fishType of ['sjoorret','makrell','sei','orret','abbor','gjedde']) {
+  assert.ok(catalog.photos.length>=8);
+  for(const photo of catalog.photos){
+    assert.match(photo.localPath,/^\/lures\/open\/[a-z-]+\.jpg$/);
+    assert.match(photo.sourcePage,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+    assert.ok(photo.creator&&photo.license&&photo.usageNote);
+    const bytes=fs.readFileSync(path.join(root,'public',photo.localPath));
+    assert.equal(bytes.subarray(0,3).toString('hex'),'ffd8ff',photo.localPath);
+  }
+  const checked=new Set(),flies=new Set();
+  for(const fishType of ['sjoorret','makrell','sei','orret','abbor','gjedde']) {
     const lure=app.recommendLure({fishType,hour:6,cloud:70,wind:3,temp:10,exposure:.3,coastQuality:.7,depthMeters:8});
-    for (const choice of lure.genericCombinations) {
-      assert.match(choice.image,/^\/lures\/generated\/[a-z-]+\.svg$/);
+    for(const choice of lure.genericCombinations){
+      assert.match(choice.image,/^\/lures\/open\/[a-z-]+\.jpg$/);
+      assert.match(choice.photo.sourcePage,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+      assert.ok(choice.photo.creator&&choice.photo.license&&choice.photo.usageNote);
       checked.add(choice.image);
     }
-    if(lure.dropperFly.recommended) {
-      assert.match(lure.dropperFly.image,/^\/lures\/generated\/fly-[a-z-]+\.svg$/);
-      checked.add(lure.dropperFly.image);
-    }
+    if(lure.dropperFly.recommended) flies.add(lure.dropperFly.image);
   }
-  assert.ok(checked.size>=15);
-  for(const image of checked) {
-    const file=path.join(__dirname,'..','public',image);
-    assert.equal(fs.existsSync(file),true,image);
-    const svg=fs.readFileSync(file,'utf8');
-    assert.match(svg,/^<svg[^>]+role="img"/);
-    assert.match(svg,/<\/svg>$/);
+  assert.ok(checked.size>=5);
+  for(const image of flies){
+    assert.match(image,/^\/lures\/generated\/fly-[a-z-]+\.svg$/);
+    assert.match(fs.readFileSync(path.join(root,'public',image),'utf8'),/^<svg[^>]+role="img"/);
   }
+  assert.match(appJs,/Ekte referansefoto/);
+  assert.match(appJs,/lure-credit/);
 });
 
 test('app name is Fiste guiden in the page and install manifest', () => {
@@ -553,6 +567,18 @@ test('freshwater mode never presents marine depth as an inland measurement', () 
   assert.match(quality.depth.source, /innsjø|innland/i);
   assert.doesNotMatch(quality.depth.source, /EMODnet/i);
   assert.match(quality.summary, /innlandsdybde|dybde/i);
+});
+
+test('freshwater mode exposes an optional NVE depth-map layer without claiming universal lake depth', () => {
+  const root=path.join(__dirname,'..','public');
+  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+  const js=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  assert.match(html,/id="nveDepthToggle"/);
+  assert.match(js,/kart\.nve\.no\/enterprise\/services\/Innsjodatabase2\/MapServer\/WMSServer/);
+  assert.match(js,/layers:\s*'DybdeKurve,DybdePunkt'/);
+  assert.match(js,/Kilde: [^']*NVE[^']*Dybdekart/);
+  assert.match(js,/nveDepthToggle[^\n]+hidden=!freshwater/);
+  assert.match(js,/map\.removeLayer\(nveDepthLayer\)/);
 });
 
 test('freshwater species are visible in the selector and switch off the sea chart', () => {
