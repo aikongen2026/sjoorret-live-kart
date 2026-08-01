@@ -1,6 +1,6 @@
-const CACHE = 'fiske-live-rev05-fredrikstad-shell';
+const CACHE = 'fiske-live-rev05-fredrikstad-tackle-tactics-shell';
 const SHELL = [
-  '/', '/index.html', '/style.css?v=13.1', '/app.js?v=13.1', '/manifest.webmanifest', '/icon.svg',
+  '/', '/index.html', '/style.css?v=13.2', '/app.js?v=13.2', '/manifest.webmanifest', '/icon.svg',
   '/lures/spoon-light-silver.jpg', '/lures/spoon-warm-copper.jpg', '/lures/spoon-blue-silver.jpg', '/lures/spoon-compact-spotted.jpg',
   '/lures/blue-silver-shallow.jpg', '/lures/black-silver-diving.jpg', '/lures/gold-orange-lowlight.jpg', '/lures/trout-natural.jpg',
   '/lures/user/a01-silver-scale-spoon.jpg', '/lures/user/a02-gold-stripe-caster.jpg', '/lures/user/a06-blue-spotted-stickbait.jpg',

@@ -87,14 +87,26 @@ function popupAlternativeLuresHtml(alternatives=[]) {
   if (!alternatives.length) return '';
   return `<div class="popup-alternatives"><b>Andre gode valg:</b>${alternatives.map(choice => `<div><img class="popup-alternative-thumb zoomable-lure" src="${choice.image}" alt="${choice.name} – ${choice.color}" tabindex="0" role="button"><span><strong>${choice.name}</strong><br>${choice.type} · velg ${choice.weight}<br>${choice.color}</span></div>`).join('')}</div>`;
 }
+function genericCombinationsHtml(combinations=[]) {
+  if(!combinations.length) return '';
+  return `<div class="generic-combinations"><span>Andre slukkombinasjoner</span>${combinations.map(choice=>`<article><b>${choice.type} · ${choice.weight}</b><em>◉ ${choice.color}</em><small>${choice.rigging}<br>${choice.use}</small></article>`).join('')}</div>`;
+}
+function presentationTacticsHtml(lure={}) {
+  const presentation=lure.presentation||{};
+  const fly=lure.dropperFly||{};
+  if(!presentation.band&&!fly.pattern) return '';
+  return `<div class="presentation-tactics"><article><span>Slukhøyde i vannet</span><b>${presentation.band||'Søk trinnvis i vannsøylen'}</b><small>${presentation.method||''}<br><em>${presentation.basis||''}</em></small></article><article class="dropper-fly" data-recommended="${fly.recommended?'yes':'no'}"><span>Opphengerflue · ${fly.recommended?'Ja':'Nei'}</span><b>${fly.pattern||'Ikke anbefalt'}${fly.color&&fly.color!=='Ikke aktuelt'?` · ${fly.color}`:''}</b><small>${fly.distance||''}<br>${fly.reason||''}<br><em>${fly.rulesNote||''}</em></small></article></div>`;
+}
 function lureHtml(lure={}) {
   const wobbler = lure.wobbler || {};
   const depth = lure.depth || {};
-  return `<div class="lure-cell"><div class="lure-main"><img class="lure-photo zoomable-lure" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="${lure.name || `Eksempel på ${lure.color || 'sølv/blå sluk'}`}" loading="lazy" tabindex="0" role="button"><div><span class="lure-label">Anbefalt sluk</span><b>${lure.name ? `${lure.name} · ` : ''}${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><span class="lure-color">◉ ${lure.color || 'Sølv/blå'}</span><span class="depth-note">Dybde: ${depth.label || 'ukjent'}</span></div></div><small>${lure.reason || 'Tilpass innsveivingen etter forholdene.'}</small>${alternativeLuresHtml(lure.alternatives)}<div class="wobbler-rec"><img class="lure-thumb zoomable-lure" src="${wobbler.image || '/lures/blue-silver-shallow.jpg'}" alt="Eksempel på ${wobbler.color || 'sølv/blå vobbler'}" loading="lazy" tabindex="0" role="button"><div><span>Effektiv vobbler</span><b>${wobbler.type || 'Gruntgående minnowvobbler'} · ${wobbler.size || '8–11 cm'}</b><small>${wobbler.color || 'Sølv/blå med mørk rygg'}</small></div></div></div>`;
+  return `<div class="lure-cell"><div class="lure-main"><img class="lure-photo zoomable-lure" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="${lure.name || `Eksempel på ${lure.color || 'sølv/blå sluk'}`}" loading="lazy" tabindex="0" role="button"><div><span class="lure-label">Anbefalt sluk</span><b>${lure.name ? `${lure.name} · ` : ''}${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><span class="lure-color">◉ ${lure.color || 'Sølv/blå'}</span><span class="depth-note">Dybde: ${depth.label || 'ukjent'}</span></div></div><small>${lure.reason || 'Tilpass innsveivingen etter forholdene.'}</small>${presentationTacticsHtml(lure)}${genericCombinationsHtml(lure.genericCombinations)}${alternativeLuresHtml(lure.alternatives)}<div class="wobbler-rec"><img class="lure-thumb zoomable-lure" src="${wobbler.image || '/lures/blue-silver-shallow.jpg'}" alt="Eksempel på ${wobbler.color || 'sølv/blå vobbler'}" loading="lazy" tabindex="0" role="button"><div><span>Effektiv vobbler</span><b>${wobbler.type || 'Gruntgående minnowvobbler'} · ${wobbler.size || '8–11 cm'}</b><small>${wobbler.color || 'Sølv/blå med mørk rygg'}</small></div></div></div>`;
 }
 function compactPopupHtml(zone,index) {
   const lure=zone.lure || {};
-  return `<div class="compact-popup"><div class="compact-popup-head"><span>Sone ${index+1}</span><b>${zone.name}</b></div><div class="popup-score"><span>Fiskeforhold</span><b>${zone.score}/100</b><small>Veiledende rangering – ikke fangstsannsynlighet</small></div><div class="popup-factors">${strongestFactorsHtml(zone.breakdown)}</div><div class="popup-quality"><span>Datagrunnlag</span><b>${zone.dataQuality?.level || 'Begrenset'}</b><small>${zone.dataQuality?.summary || 'Kildestatus ukjent'}</small></div><div class="popup-primary"><img class="popup-lure-thumb zoomable-lure" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="${lure.name || 'Anbefalt sluk'} – ${lure.color || 'Sølv/blå'}" tabindex="0" role="button"><div><span>Anbefalt sluk</span><b>${lure.name ? `${lure.name} · ` : ''}${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><small>${lure.color || 'Sølv/blå'}</small></div></div><button type="button" class="popup-details" data-zone="${zone.id}">Vis alle detaljer i listen</button></div>`;
+  const presentation=lure.presentation||{};
+  const fly=lure.dropperFly||{};
+  return `<div class="compact-popup"><div class="compact-popup-head"><span>Sone ${index+1}</span><b>${zone.name}</b></div><div class="popup-score"><span>Fiskeforhold</span><b>${zone.score}/100</b><small>Veiledende rangering – ikke fangstsannsynlighet</small></div><div class="popup-factors">${strongestFactorsHtml(zone.breakdown)}</div><div class="popup-quality"><span>Datagrunnlag</span><b>${zone.dataQuality?.level || 'Begrenset'}</b><small>${zone.dataQuality?.summary || 'Kildestatus ukjent'}</small></div><div class="popup-primary"><img class="popup-lure-thumb zoomable-lure" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="${lure.name || 'Anbefalt sluk'} – ${lure.color || 'Sølv/blå'}" tabindex="0" role="button"><div><span>Anbefalt sluk</span><b>${lure.name ? `${lure.name} · ` : ''}${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><small>${lure.color || 'Sølv/blå'}</small></div></div><div class="popup-tactics"><b>Slukhøyde:</b> ${presentation.band||'Søk trinnvis'}<br><b>Opphengerflue:</b> ${fly.recommended?'Ja':'Nei'}${fly.recommended&&fly.color?` · ${fly.color}`:''}</div><button type="button" class="popup-details" data-zone="${zone.id}">Vis alle detaljer i listen</button></div>`;
 }
 function selectZone(zoneId,{scroll=false}={}) {
   document.querySelectorAll('.zone-row').forEach(row=>row.classList.toggle('selected',row.dataset.zone===zoneId));
@@ -167,6 +179,6 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.1', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.2', { updateViaCache: 'none' }).catch(() => {}));
 updateWaterModeUI();
 loadZones({immediate:true});

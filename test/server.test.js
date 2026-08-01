@@ -101,7 +101,7 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /app\.js\?v=13\.1/);
+  assert.match(html, /app\.js\?v=13\.2/);
   assert.match(sw, /fredrikstad/);
 });
 
@@ -134,10 +134,50 @@ test('recommendLure chooses a long-casting natural lure for bright exposed coast
 
 test('recommendLure always returns the complete UI contract', () => {
   const lure = app.recommendLure({ hour: 12, cloud: 85, wind: 4, temp: 7, tempTrend: -1, exposure: 0.6, coastQuality: 0.8, lat: 63, lon: 9 });
-  assert.deepEqual(Object.keys(lure).sort(), ['alternatives','color','depth','image','name','reason','type','weight','wobbler'].sort());
+  assert.deepEqual(Object.keys(lure).sort(), ['alternatives','color','depth','dropperFly','genericCombinations','image','name','presentation','reason','type','weight','wobbler'].sort());
   for (const key of ['color','name','reason','type','weight']) assert.equal(typeof lure[key], 'string');
   assert.equal(typeof lure.wobbler, 'object');
   assert.equal(lure.alternatives.length, 2);
+  assert.equal(lure.genericCombinations.length, 2);
+  assert.match(lure.presentation.band, /m|vannlag|over bunnen/i);
+  assert.equal(typeof lure.dropperFly.recommended, 'boolean');
+});
+
+test('all species receive generic lure combinations, water-column advice and dropper-fly guidance', () => {
+  for (const fishType of ['sjoorret','makrell','sei','orret','abbor','gjedde']) {
+    const lure=app.recommendLure({fishType,hour:6,cloud:75,wind:3,temp:10,exposure:.4,coastQuality:.7,depthMeters:14});
+    assert.equal(lure.genericCombinations.length,2,fishType);
+    for(const choice of lure.genericCombinations) {
+      assert.deepEqual(Object.keys(choice).sort(),['color','rigging','type','use','weight'].sort());
+      for(const value of Object.values(choice)) assert.equal(typeof value,'string');
+    }
+    assert.deepEqual(Object.keys(lure.presentation).sort(),['band','basis','method','reference'].sort());
+    assert.match(lure.presentation.basis,/tommelfingerregel|søketrinn/i);
+    assert.deepEqual(Object.keys(lure.dropperFly).sort(),['color','distance','pattern','reason','recommended','rulesNote'].sort());
+    assert.match(lure.dropperFly.rulesNote,/lokale regler|fiskekort/i);
+  }
+});
+
+test('water-column and dropper advice changes safely by species and missing depth', () => {
+  const seaTrout=app.recommendLure({fishType:'sjoorret',hour:6,cloud:80,wind:3,depthMeters:3});
+  const saithe=app.recommendLure({fishType:'sei',hour:13,cloud:20,wind:5,depthMeters:24});
+  const pike=app.recommendLure({fishType:'gjedde',hour:13,cloud:40,wind:3});
+  const unknown=app.recommendLure({fishType:'makrell',hour:13,cloud:30,wind:4});
+  assert.equal(seaTrout.dropperFly.recommended,true);
+  assert.match(seaTrout.dropperFly.color,/sort|lilla|oransje|kobber/i);
+  assert.match(saithe.presentation.band,/over bunnen/i);
+  assert.equal(pike.dropperFly.recommended,false);
+  assert.match(unknown.presentation.basis,/søketrinn/i);
+});
+
+test('zone UI renders generic combinations, lure height and dropper fly details', () => {
+  const js=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  assert.match(js,/Andre slukkombinasjoner/);
+  assert.match(js,/Slukhøyde i vannet/);
+  assert.match(js,/Opphengerflue/);
+  assert.match(js,/lure\.genericCombinations/);
+  assert.match(js,/lure\.presentation/);
+  assert.match(js,/lure\.dropperFly/);
 });
 
 test('the user lure catalog contains 18 distinct photographed lures', () => {

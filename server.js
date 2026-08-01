@@ -240,6 +240,77 @@ function selectPhotographedLures({ fishType='sjoorret', hour, cloud, wind, temp,
   return [primary, ...alternatives];
 }
 
+function genericLureCombinations({fishType,lowLight,cloud,exposed}) {
+  const bright=cloud<35&&!lowLight;
+  const choices={
+    sjoorret:[
+      {type:'Inline-spinner med smalt blad',weight:'8–15 g',color:lowLight?'Kobber/sort med rødt punkt':'Sølv/blå eller sølv/grønn',rigging:'Enkeltagn på fortom',use:'Jevn innsveiving med korte spinnstopp'},
+      {type:'Myk shad på lett jigghode',weight:'7–10 cm · 5–12 g hode',color:bright?'Perlemor/oliven':'Motorolje, kobber eller mørk rygg',rigging:'Rettmontert shad med én krok',use:'Rolige løft over bunn, tang og renner'}
+    ],
+    makrell:[
+      {type:'Slank casting-jig',weight:exposed?'30–45 g':'20–35 g',color:lowLight?'Sølv/rosa med kontrast':'Sølv/blå eller holografisk sølv',rigging:'Enkeltagn eller enkel assistkrok',use:'Tell ned og sveiv raskt gjennom stimen'},
+      {type:'Sildesluk med prismatisk side',weight:'18–35 g',color:bright?'Blank sølv/blå':'Sølv/grønn eller sølv/rosa',rigging:'Enkeltagn på slitesterk fortom',use:'Varier mellom rask innsveiving og korte synkepauser'}
+    ],
+    sei:[
+      {type:'Myk shad på jigghode',weight:'10–15 cm · 20–50 g hode',color:lowLight?'Sort/lilla over sølv':'Blå/sølv eller seifarget rygg',rigging:'Rettmontert shad med kraftig enkeltkrok',use:'Fisk trinnvis ned mot kanter og dypere vann'},
+      {type:'Bladpilk eller kompakt casting-jig',weight:exposed?'40–70 g':'30–55 g',color:bright?'Sølv/blå':'Sølv med mørk eller selvlysende kontrast',rigging:'Enkel assistkrok for mindre hekting',use:'Kontrollerte løft og fall i midtre/nedre vannlag'}
+    ],
+    orret:[
+      {type:'Liten inline-spinner',weight:'4–8 g',color:lowLight?'Kobber/sort':'Sølv/blå eller sølv/grønn',rigging:'Enkeltagn på tynn fortom',use:'Jevn fart langs land, innløp og odder'},
+      {type:'Mikrojigg eller liten shad',weight:'4–7 cm · 3–7 g hode',color:bright?'Naturfarget oliven/perlemor':'Brun, kobber eller mørk rygg',rigging:'Lett jigghode med én krok',use:'Korte løft og pauser langs bunnkanter'}
+    ],
+    abbor:[
+      {type:'Liten shad på jigghode',weight:'5–9 cm · 4–10 g hode',color:cloud>=60?'Chartreuse/brun kontrast':'Naturfarget grønn/perlemor',rigging:'Rettmontert shad med én krok',use:'Små hopp langs bunn, brygger og sivkanter'},
+      {type:'Liten spinner eller blade bait',weight:'5–12 g',color:lowLight?'Kobber/oransje':'Sølv/grønn eller abborfarget',rigging:'Enkeltagn på fluorokarbonfortom',use:'Søk raskt i midtre vannlag, senk farten ved kontakt'}
+    ],
+    gjedde:[
+      {type:'Stor myk shad',weight:'12–20 cm · 20–50 g samlet',color:cloud>=50?'Mørk rygg med chartreuse/oransje':'Mort- eller abborfarget',rigging:'Én egnet krok-rigg og bitefast fortom',use:'Rolig over vegetasjon og langs dypkanter'},
+      {type:'Spinnerbait med én krok',weight:'15–30 g',color:lowLight?'Sort/oransje eller kobber':'Hvit/sølv eller grønn/gul',rigging:'Bitefast fortom; hold over vegetasjonen',use:'Jevn innsveiving gjennom sivbukter og grunne kanter'}
+    ]
+  };
+  return choices[fishType]||choices.sjoorret;
+}
+
+function lurePresentationAdvice({fishType,depthMeters,lowLight,wind,exposed}) {
+  const known=Number.isFinite(depthMeters);
+  let band,reference='under overflaten',method;
+  if(fishType==='sei') {
+    band=known&&depthMeters>=12?'Start 2–5 m over bunnen':'Start i midtre vannlag og søk trinnvis nedover';
+    reference=known&&depthMeters>=12?'over bunnen':'i vannsøylen';
+    method='Tell sluken ned i faste intervaller; løft den over bunnkontakt for å redusere hekting.';
+  } else if(fishType==='makrell') {
+    band=known&&depthMeters>=10?'Start 2–5 m under overflaten':'Start 0,5–2 m under overflaten';
+    method='Begynn høyt og tell 3–5 sekunder dypere per kast til du finner stimen.';
+  } else if(fishType==='sjoorret') {
+    band=known&&depthMeters<=4?'0,2–0,8 m under overflaten':lowLight?'0,3–1,2 m under overflaten':'Start 1–3 m under overflaten';
+    method=known&&depthMeters<=4?'Hold stangtuppen høyt og bruk jevn, rolig fart over grunnen.':'Varier innsveivingsfart og korte stopp; unngå å slepe i bunnen.';
+  } else if(fishType==='orret') {
+    band=lowLight?'0,3–1,0 m under overflaten':'Start 0,8–2 m under overflaten';
+    method='Fisk høyt morgen/kveld; tell gradvis ned i klart dagslys eller kaldt vann.';
+  } else if(fishType==='abbor') {
+    band='Start 0,5–1,5 m over bunnen'; reference='over bunnen';
+    method='Bruk korte løft og pauser; søk midtvanns hvis du ser jagende fisk.';
+  } else {
+    band='Start 0,5–1,5 m over vegetasjon eller bunn'; reference='over vegetasjon/bunn';
+    method='Hold agnet over vegetasjonen og senk det langs kanten mot dypere vann.';
+  }
+  if(!known&&['sjoorret','makrell','sei'].includes(fishType)) {
+    band=fishType==='sei'?'Start i midtre vannlag og søk trinnvis nedover':fishType==='makrell'?'Start øverst og søk trinnvis nedover':'Start 0,5–1,5 m under overflaten og søk trinnvis';
+  }
+  return {band,reference,method,basis:known?'Tommelfingerregel basert på estimert dybde og forhold – ikke en målt fiskedybde.':'Søketrinn fordi lokal dybde/fiskedybde ikke er bekreftet.'};
+}
+
+function dropperFlyAdvice({fishType,lowLight,cloud,wind,exposed}) {
+  const rulesNote='Kontroller fiskekort og lokale regler: opphengerfluen kan telle som ekstra krok/agn.';
+  const baitfishColor=lowLight?'Sort/lilla med litt oransje':'Hvit/sølv med blå eller oliven rygg';
+  if(fishType==='sjoorret') return {recommended:wind<=7, distance:'45–60 cm foran sluken', pattern:'Liten reke-, kutling- eller børstemarkflue', color:lowLight?'Sort/lilla eller kobber/oransje':'Oliven/hvit eller sølv/perlemor', reason:wind<=7?'Aktuelt som ekstra, lett bytte ved rolig til moderat fiske.':'Ikke førstevalg i hard vind; riggen kan tvinne og hekte.', rulesNote};
+  if(fishType==='makrell') return {recommended:wind<=8,distance:'50–80 cm foran sluken',pattern:'Liten silde-/tobisstreamer',color:baitfishColor,reason:wind<=8?'Kan gi en liten byttefisk foran metallagnet når makrellen jager.':'Dropp opphengeren i hard vind for enklere og sikrere kast.',rulesNote};
+  if(fishType==='sei') return {recommended:wind<=8&&!exposed,distance:'50–80 cm foran sluken',pattern:'Slank tobis- eller småfiskstreamer',color:baitfishColor,reason:wind<=8&&!exposed?'Aktuelt i håndterbare forhold når seien tar små byttefisk.':'Bruk ett agn i vind/eksponert sjø for mindre floke og bedre kontroll.',rulesNote};
+  if(fishType==='orret') return {recommended:lowLight&&wind<=4,distance:'40–60 cm foran sluken',pattern:'Liten våtflue eller nymfe',color:lowLight?'Sort/brun eller kobber':'Oliven/brun',reason:lowLight&&wind<=4?'Kan vurderes i rolig vann der lokale regler tillater ekstra krok.':'Ikke standardvalg; bruk én sluk når forhold eller regler er uklare.',rulesNote};
+  if(fishType==='abbor') return {recommended:false,distance:'Ikke anbefalt som standard',pattern:'Ingen opphengerflue',color:'Ikke aktuelt',reason:'Jigg, spinner eller blade bait alene gir bedre kontroll rundt struktur.',rulesNote};
+  return {recommended:false,distance:'Ikke anbefalt',pattern:'Ingen opphengerflue',color:'Ikke aktuelt',reason:'Ved gjeddefiske prioriteres bitefast fortom og ett kontrollert agn.',rulesNote};
+}
+
 function recommendLure(input = {}) {
   const fishType = normalizeFishType(input.fishType);
   const freshwater = isFreshwaterFish(fishType);
@@ -309,8 +380,11 @@ function recommendLure(input = {}) {
   }
   const depth = { meters: depthMeters, label: noDepth ? `${noDepth} m estimert${conservativeShallow && fishType === 'sjoorret' ? ' · gruntvannsvalg' : ''}` : freshwater ? 'Innlandsdybde ikke tilgjengelig' : `Ukjent${conservativeShallow && fishType === 'sjoorret' ? ' · konservativt gruntvannsvalg' : ''}`, source: depthMeters === null ? null : 'EMODnet DTM (~125 m oppløsning)', estimated: depthMeters !== null, conservativeShallow };
   const alternatives = alternateItems.map(item => ({ name:item.name, type:item.family, weight, color:item.color, image:item.image, reason:'Alternativt fotoagn for de samme forholdene.' }));
+  const genericCombinations=genericLureCombinations({fishType,lowLight,cloud,exposed});
+  const presentation=lurePresentationAdvice({fishType,depthMeters,lowLight,wind,exposed});
+  const dropperFly=dropperFlyAdvice({fishType,lowLight,cloud,wind,exposed});
   const speciesReason = fishType === 'makrell' ? 'Makrell: søk i frie vannmasser og rundt strøm, odder eller stimer av småfisk' : fishType === 'sei' ? 'Sei: prioriter strøm, bratte kanter og vann med litt dybde' : fishType === 'orret' ? 'Ferskvannsørret: fisk langs vannkanter, odder, innløp og vindpåvirkede bredder' : fishType === 'abbor' ? 'Abbor: søk langs struktur, sivkanter, odder og lune bukter' : fishType === 'gjedde' ? 'Gjedde: prioriter grunne bukter, vegetasjon og kanter mot dypere vann' : null;
-  return { name:primary.name, type, weight, color:primary.color, image:primary.image, reason: `${speciesReason ? `${speciesReason}; ` : ''}${timeReason}; ${tackleReason}.`, depth, wobbler, alternatives };
+  return { name:primary.name, type, weight, color:primary.color, image:primary.image, reason: `${speciesReason ? `${speciesReason}; ` : ''}${timeReason}; ${tackleReason}.`, depth, wobbler, alternatives, genericCombinations, presentation, dropperFly };
 }
 
 function formatReason({ breakdown = {}, weather = {}, coastQuality = 0.5, exposure = 0.5, waterType = 'saltwater' } = {}) {
