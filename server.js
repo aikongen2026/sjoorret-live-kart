@@ -4,12 +4,15 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { PNG } = require('pngjs');
+const PACKAGE = require('./package.json');
+const APP_REVISION = `REV ${String(PACKAGE.appRevision).padStart(2,'0')}`;
 
 const PORT = Number(process.env.PORT || 3000);
 const MET_USER_AGENT = process.env.MET_USER_AGENT || 'sjoorret-live-kart/11.1 (jan.skrotnes@straye.no; https://github.com/aikongen2026/sjoorret-live-kart)';
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const OPEN_LURE_PHOTOS = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR,'lures','open','catalog.json'),'utf8')).photos;
 const OPEN_LURE_PHOTO_BY_ID = Object.freeze(Object.fromEntries(OPEN_LURE_PHOTOS.map(photo=>[photo.id,photo])));
+const OFFICIAL_NO_FISHING_ZONES = JSON.parse(fs.readFileSync(path.join(PUBLIC_DIR,'data','fishing-restrictions-2024.json'),'utf8')).zones;
 const MAX_ZONE_COUNT = 12;
 const MAX_ZONE_CANDIDATES = 180;
 const FISH_TYPES = Object.freeze({
@@ -26,6 +29,24 @@ function normalizeFishType(value = 'sjoorret') {
   return fishType;
 }
 function isFreshwaterFish(value) { return FRESHWATER_FISH_TYPES.has(normalizeFishType(value)); }
+
+function localDistanceToSegmentM(lat,lon,a,b) {
+  const meanLat=(lat+a.lat+b.lat)/3*Math.PI/180;
+  const sx=111320*Math.cos(meanLat), sy=110540;
+  const px=lon*sx,py=lat*sy,ax=a.lon*sx,ay=a.lat*sy,bx=b.lon*sx,by=b.lat*sy;
+  const dx=bx-ax,dy=by-ay,denom=dx*dx+dy*dy;
+  const t=denom?clamp(((px-ax)*dx+(py-ay)*dy)/denom,0,1):0;
+  return Math.hypot(px-(ax+t*dx),py-(ay+t*dy));
+}
+
+function isNearOfficialNoFishingZone(lat,lon) {
+  if(!Number.isFinite(lat)||!Number.isFinite(lon)) return false;
+  return OFFICIAL_NO_FISHING_ZONES.some(zone=>{
+    if(!zone.renderBoundary||zone.outerBoundary.length<2) return false;
+    const buffer=Math.max(160,Math.min(900,zone.lengthM*.55));
+    return localDistanceToSegmentM(lat,lon,zone.outerBoundary[0],zone.outerBoundary.at(-1))<=buffer;
+  });
+}
 
 function createBoundedCache({ maxEntries = 220, now = Date.now } = {}) {
   const entries = new Map();
@@ -743,6 +764,7 @@ async function generateZones({west,south,east,north,zoom}, currentWeather, selec
   for (const point of freshwaterMaskError ? [] : candidateGrid(west,south,east,north)) {
     if (zones.length>=MAX_ZONE_COUNT) break; tested++;
     try {
+      if(!freshwater&&isNearOfficialNoFishingZone(point.lat,point.lon)){restrictedWaters++;rejected++;continue;}
       const coast=await nearCoastInfo(point.lat,point.lon,width,height,zoom); if(!coast){rejected++;continue;}
       const freshwaterArea=freshwater?freshwaterAtPoint(point.lat,point.lon,freshwaterAreas):null;
       if(freshwater&&!freshwaterArea){rejected++;continue;}
@@ -778,11 +800,12 @@ async function generateZones({west,south,east,north,zoom}, currentWeather, selec
 
 function send(res, code, data, type='application/json; charset=utf-8', extraHeaders={}) {
   res.writeHead(code, {'Content-Type':type,'Access-Control-Allow-Origin':'*','Cache-Control':type.startsWith('application/json')?'no-store':'public, max-age=3600', ...extraHeaders});
-  res.end(type.startsWith('application/json')?JSON.stringify(data):data);
+  const body=type.startsWith('application/json')&&!Buffer.isBuffer(data)&&typeof data!=='string'?JSON.stringify(data):data;
+  res.end(body);
 }
 async function handleApi(req,res,url) {
   try {
-    if(url.pathname==='/api/health') return send(res,200,{ok:true,version:'v11-rev05-ferskvann'});
+    if(url.pathname==='/api/health') return send(res,200,{ok:true,version:'v11-rev05-ferskvann',revision:APP_REVISION});
     if(url.pathname==='/api/weather') { const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon')); if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<57||lat>72||lon<3||lon>32) return send(res,400,{error:'Ugyldig lat/lon for norskekysten'}); return send(res,200,await weather(lat,lon)); }
     if(url.pathname==='/api/zones') { let input,fishType; try{input=validateZoneRequest(url.searchParams.get('bbox'),url.searchParams.get('zoom')||'12');fishType=normalizeFishType(url.searchParams.get('fish')||'sjoorret');}catch(error){return send(res,400,{error:error.message});} if(isFreshwaterFish(fishType)&&(input.east-input.west>0.5||input.north-input.south>0.5)) return send(res,400,{error:'Zoom nærmere vannet for ferskvannsanalyse.'}); const lat=(input.south+input.north)/2,lon=(input.west+input.east)/2; let current=null,weatherWarning=null; try{current=await weather(lat,lon);}catch(error){weatherWarning='Værdata er midlertidig utilgjengelig.';} const result=await generateZones(input,current,fishType); const bestTimes=bestFishingTimes(current?.hourly||[],fishType); const publicWeather=current?{...current}:null; if(publicWeather) delete publicWeather.hourly; return send(res,200,{...result,fishType,fishLabel:FISH_TYPES[fishType],weather:publicWeather,bestTimes,warnings:[weatherWarning,result.stats.warning].filter(Boolean)}); }
     return send(res,404,{error:'Ukjent API'});
@@ -794,4 +817,4 @@ function createServer() {
 }
 function startServer(port=PORT) { const server=createServer(); return server.listen(port,()=>{ let ip='localhost'; for(const list of Object.values(os.networkInterfaces())) for(const item of list||[]) if(item.family==='IPv4'&&!item.internal) ip=item.address; console.log(`Fiste guiden kjører på http://${ip}:${port}`); }); }
 if(require.main===module) startServer();
-module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,isFreshwaterFish,parseFreshwaterAreas,freshwaterAtPoint,parseNominatimWater,fetchNominatimWater,fetchFreshwaterAreas,bestFishingTimes,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};
+module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,isFreshwaterFish,isNearOfficialNoFishingZone,parseFreshwaterAreas,freshwaterAtPoint,parseNominatimWater,fetchNominatimWater,fetchFreshwaterAreas,bestFishingTimes,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};

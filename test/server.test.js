@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 
 const app = require('../server');
 
@@ -69,12 +70,27 @@ test('health keeps the v11 API version and static shell advertises Fiste guiden'
   t.after(() => server.close());
   const port = server.address().port;
   const health = await fetch(`http://127.0.0.1:${port}/api/health`).then(r => r.json());
-  assert.deepEqual(health, { ok: true, version: 'v11-rev05-ferskvann' });
+  assert.deepEqual(health,{ok:true,version:'v11-rev05-ferskvann',revision:'REV 06'});
   const html = await fetch(`http://127.0.0.1:${port}/`).then(r => r.text());
   assert.match(html, /Fiste guiden/);
   assert.match(html, /offline/i);
   const swResponse = await fetch(`http://127.0.0.1:${port}/sw.js`);
   assert.match(swResponse.headers.get('cache-control') || '', /no-cache|no-store/);
+});
+
+test('static JSON source databases are served as their actual documents', async t => {
+  const server = app.createServer().listen(0);
+  t.after(() => server.close());
+  await new Promise(resolve => server.once('listening', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const spotsResponse=await fetch(`${base}/data/kirkoy-seatrout-spots.json`);
+  const restrictionsResponse=await fetch(`${base}/data/fishing-restrictions-2024.json`);
+  assert.equal(spotsResponse.status,200);
+  assert.equal(restrictionsResponse.status,200);
+  const spots=await spotsResponse.json();
+  const restrictions=await restrictionsResponse.json();
+  assert.equal(spots.spots.length,17);
+  assert.equal(restrictions.zones.length,19);
 });
 
 test('PWA shell has a real cache and never caches API responses', () => {
@@ -95,6 +111,40 @@ test('map invalidates Leaflet size when the responsive container changes', () =>
   assert.match(appJs, /invalidateSize/);
 });
 
+test('desktop keeps the map fixed while only the results panel scrolls, with natural mobile scrolling', () => {
+  const css=fs.readFileSync(path.join(__dirname,'..','public','style.css'),'utf8');
+  assert.match(css,/@media\(min-width:851px\)\{html,body\{overflow:hidden\}/);
+  assert.match(css,/\.app\{height:100dvh;min-height:0;overflow:hidden\}/);
+  assert.match(css,/main\{min-height:0;overflow:hidden\}/);
+  assert.match(css,/\.map-wrap\{height:100%;min-height:0\}/);
+  assert.match(css,/aside\{height:100%;min-height:0;overflow-y:auto/);
+  assert.match(css,/@media\(max-width:850px\)[^\n]*\.app\{height:auto;min-height:100%;overflow:visible\}/);
+  assert.match(css,/@media\(max-width:850px\)[^\n]*aside\{height:auto;min-height:0[^}]*overflow:visible/);
+});
+
+test('revision helper increments the single app revision and formats two digits', () => {
+  const revision=require(path.join(__dirname,'..','scripts','bump-revision.js'));
+  assert.equal(revision.nextRevision(5),6);
+  assert.equal(revision.nextRevision('REV 09'),10);
+  assert.equal(revision.formatRevision(6),'REV 06');
+  const pkg=JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8'));
+  const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+  assert.equal(pkg.appRevision,6);
+  assert.match(pkg.scripts['revision:next'],/bump-revision/);
+  assert.match(html,/id="revisionBadge">REV 06<\/span>/);
+
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'fiste-revision-'));
+  fs.mkdirSync(path.join(root,'public'));
+  fs.writeFileSync(path.join(root,'package.json'),JSON.stringify({appRevision:6}));
+  fs.writeFileSync(path.join(root,'public','index.html'),'<span id="revisionBadge">REV 06</span><p>Historikk REV 04A</p>');
+  fs.writeFileSync(path.join(root,'README.md'),'# Fiste guiden – REV 06\nHistorikk REV 04A\n');
+  const bumped=revision.bump(root);
+  assert.deepEqual(bumped,{number:7,revision:'REV 07'});
+  assert.match(fs.readFileSync(path.join(root,'public','index.html'),'utf8'),/REV 07<\/span><p>Historikk REV 04A/);
+  assert.match(fs.readFileSync(path.join(root,'README.md'),'utf8'),/^# Fiste guiden – REV 07\nHistorikk REV 04A/m);
+  fs.rmSync(root,{recursive:true,force:true});
+});
+
 test('default map starts in Fredrikstad when location is unavailable', () => {
   const root = path.join(__dirname, '..', 'public');
   const appJs = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
@@ -103,8 +153,8 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /app\.js\?v=13\.7/);
-  assert.match(sw, /fredrikstad/);
+  assert.match(html, /app\.js\?v=14\.0/);
+  assert.match(sw, /rev06-kirkoy-rules-14-0/);
 });
 
 test('passive map resize cannot trigger a repeating zone reload', () => {
@@ -289,7 +339,7 @@ test('app name is Fiste guiden in the page and install manifest', () => {
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'..','public','manifest.webmanifest'),'utf8'));
   assert.match(html,/<title>Fiste guiden<\/title>/);
-  assert.match(html,/<h1>Fiste guiden <span>REV 05<\/span><\/h1>/);
+  assert.match(html,/<h1>Fiste guiden <span id="revisionBadge">REV 06<\/span><\/h1>/);
   assert.equal(manifest.name,'Fiste guiden');
   assert.equal(manifest.short_name,'Fiste guiden');
 });
@@ -515,9 +565,9 @@ test('REV 04A UI explains scoring, numbers zones, and keeps popup compact', () =
   const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
   assert.match(html, /id="scoreDisclaimer"/);
   assert.match(html, /id="analysisSources"/);
-  assert.match(html, /REV 05/);
   assert.match(js, /zone-number/);
   assert.match(js, /data-quality/);
+  assert.match(html, /REV 06/);
   assert.match(js, /popup-details/);
   assert.match(js, /Fiskeforhold/);
   assert.match(js, /Datagrunnlag/);
@@ -579,6 +629,63 @@ test('freshwater mode exposes an optional NVE depth-map layer without claiming u
   assert.match(js,/Kilde: [^']*NVE[^']*Dybdekart/);
   assert.match(js,/nveDepthToggle[^\n]+hidden=!freshwater/);
   assert.match(js,/map\.removeLayer\(nveDepthLayer\)/);
+});
+
+test('Kirkøy source database distinguishes historical sea-trout tips from legal restrictions', () => {
+  const root=path.join(__dirname,'..','public','data');
+  const spots=JSON.parse(fs.readFileSync(path.join(root,'kirkoy-seatrout-spots.json'),'utf8'));
+  assert.equal(spots.source.url,'https://www.rosareke.no/sjoorret-plasser-kirkoy-hvaler-ostfold/');
+  assert.equal(spots.source.evidenceType,'erfaringsomtale');
+  assert.equal(spots.spots.length,17);
+  assert.equal(new Set(spots.spots.map(x=>x.id)).size,17);
+  for(const spot of spots.spots) {
+    assert.ok(spot.lat>=59&&spot.lat<=59.12&&spot.lon>=10.97&&spot.lon<=11.11,spot.name);
+    assert.ok(spot.radiusM>=200&&spot.radiusM<=800,spot.name);
+    assert.equal(spot.coordinateSource,'Kartverket stedsnavn');
+    assert.match(spot.disclaimer,/erfaringsomtale|ikke.*garanti/i);
+  }
+  const korshavn=spots.spots.find(x=>x.id==='korshavn');
+  assert.equal(korshavn.status,'restricted');
+  assert.equal(korshavn.recommend,false);
+  assert.match(korshavn.legalNote,/alt fiske.*forbudt.*hele året/i);
+});
+
+test('current 2024 regulation database contains exact outer boundaries and flags the source typo', () => {
+  const data=JSON.parse(fs.readFileSync(path.join(__dirname,'..','public','data','fishing-restrictions-2024.json'),'utf8'));
+  assert.equal(data.regulation.id,'FOR-2024-05-23-829');
+  assert.equal(data.regulation.effectiveFrom,'2024-06-01');
+  assert.equal(data.regulation.url,'https://lovdata.no/dokument/LFO/forskrift/2024-05-23-829');
+  assert.equal(data.zones.length,19);
+  assert.equal(data.zones.filter(x=>x.renderBoundary).length,18);
+  for(const zone of data.zones.filter(x=>x.renderBoundary)) {
+    assert.ok(zone.outerBoundary.length>=2,zone.name);
+    for(const point of zone.outerBoundary) assert.ok(point.lat>=58.9&&point.lat<=59.55&&point.lon>=10.1&&point.lon<=11.7,zone.name);
+    assert.equal(zone.status,'no-fishing-all-year');
+  }
+  const sourceTypo=data.zones.find(x=>x.id==='langekilsbekken-lerdalsbekken');
+  assert.equal(sourceTypo.renderBoundary,false);
+  assert.match(sourceTypo.coordinateIssue,/2653388/);
+});
+
+test('map renders sourced Kirkøy spots and official no-fishing boundaries as separate layers', () => {
+  const root=path.join(__dirname,'..','public');
+  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+  const js=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  assert.match(html,/id="sourceSpotToggle"/);
+  assert.match(html,/id="restrictionToggle"/);
+  assert.match(js,/kirkoy-seatrout-spots\.json/);
+  assert.match(js,/fishing-restrictions-2024\.json/);
+  assert.match(js,/L\.circle\(/);
+  assert.match(js,/L\.polyline\(/);
+  assert.match(js,/Historisk omtalt sjøørretområde/);
+  assert.match(js,/Alt fiske forbudt hele året/);
+  assert.match(js,/fishType.*===\s*'sjoorret'/);
+});
+
+test('generated recommendations conservatively avoid current all-year no-fishing zones', () => {
+  assert.equal(typeof app.isNearOfficialNoFishingZone,'function');
+  assert.equal(app.isNearOfficialNoFishingZone(59.0726,10.9960),true,'Korshavn');
+  assert.equal(app.isNearOfficialNoFishingZone(59.0250,11.0176),false,'Storesand');
 });
 
 test('freshwater species are visible in the selector and switch off the sea chart', () => {

@@ -1,6 +1,7 @@
-const CACHE = 'fiste-guiden-rev05-fredrikstad-network-first-13-7';
+const CACHE = 'fiste-guiden-rev06-kirkoy-rules-14-0';
 const SHELL = [
-  '/', '/index.html', '/style.css?v=13.7', '/app.js?v=13.7', '/manifest.webmanifest?v=13.7', '/icon.svg',
+  '/', '/index.html', '/style.css?v=14.0', '/app.js?v=14.0', '/manifest.webmanifest?v=14.0', '/icon.svg',
+  '/data/kirkoy-seatrout-spots.json', '/data/fishing-restrictions-2024.json',
   '/lures/spoon-light-silver.jpg', '/lures/spoon-warm-copper.jpg', '/lures/spoon-blue-silver.jpg', '/lures/spoon-compact-spotted.jpg',
   '/lures/blue-silver-shallow.jpg', '/lures/black-silver-diving.jpg', '/lures/gold-orange-lowlight.jpg', '/lures/trout-natural.jpg',
   '/lures/user/a01-silver-scale-spoon.jpg', '/lures/user/a02-gold-stripe-caster.jpg', '/lures/user/a06-blue-spotted-stickbait.jpg',

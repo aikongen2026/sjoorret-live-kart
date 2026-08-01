@@ -5,6 +5,8 @@ const nveDepthLayer = L.tileLayer.wms('https://kart.nve.no/enterprise/services/I
 
 const $ = id => document.getElementById(id);
 const zoneLayer = L.layerGroup().addTo(map);
+const sourceSpotLayer = L.layerGroup().addTo(map);
+const restrictionLayer = L.layerGroup().addTo(map);
 const mapContainerObserver = new ResizeObserver(() => map.invalidateSize({ pan: false }));
 mapContainerObserver.observe(document.querySelector('.map-wrap'));
 window.addEventListener('load', () => setTimeout(() => map.invalidateSize({ pan: false }), 0));
@@ -16,6 +18,10 @@ const freshwaterFishTypes = new Set(['orret','abbor','gjedde']);
 const catchStorageKey='fiste-guiden-catch-log-v1';
 const fishLabels={sjoorret:'Sjøørret',makrell:'Makrell',sei:'Sei',orret:'Ørret (ferskvann)',abbor:'Abbor',gjedde:'Gjedde'};
 let latestWeather=null;
+let sourceSpotData=null;
+let restrictionData=null;
+let showSourceSpots=true;
+let showRestrictions=true;
 const lureViewer = $('lureViewer');
 const lureViewerImage = $('lureViewerImage');
 const lureViewerCaption = $('lureViewerCaption');
@@ -167,9 +173,57 @@ function updateWaterModeUI() {
   $('nveDepthToggle').hidden=!freshwater;
   if(!freshwater&&map.hasLayer(nveDepthLayer)) map.removeLayer(nveDepthLayer);
   if(!freshwater){$('nveDepthToggle').setAttribute('aria-pressed','false');$('nveDepthToggle').classList.remove('depth-active');}
+  $('sourceSpotToggle').hidden=$('fishType').value!=='sjoorret';
+  $('restrictionToggle').hidden=freshwater;
   $('analysisMode').textContent=freshwater ? 'Ferskvann · MET Norway · OSM' : 'Sjøanalyse · MET Norway · Kartverket';
   $('mask').textContent=freshwater ? 'Kontrollerer innsjø/elv og vannkant …' : 'Kontrollerer sjø og kyst …';
+  renderReferenceLayers();
   return freshwater;
+}
+
+function sourceSpotPopup(spot,source={}) {
+  const restricted=spot.status==='restricted';
+  return `<article class="source-map-popup ${restricted?'restricted':''}"><span>${restricted?'Historisk omtale – ikke anbefaling':'Historisk omtalt sjøørretområde'}</span><h3>${escapeHtml(spot.name)}</h3>${restricted?`<p class="legal-warning"><b>Alt fiske forbudt hele året</b><br>${escapeHtml(spot.legalNote||spot.safety)}</p>`:''}<p>${escapeHtml(spot.summary)}</p><p><b>Kjennetegn:</b> ${escapeHtml((spot.features||[]).join(' · '))}</p><p><b>Sikkerhet/adkomst:</b> ${escapeHtml(spot.safety)}</p>${!restricted&&spot.legalNote?`<p class="legal-caution"><b>Nær fredningssone:</b> ${escapeHtml(spot.legalNote)}</p>`:''}<small>Gul/rød sirkel er en omtrentlig områdeindikator, ikke en eiendoms-, frednings- eller fangstgrense. ${escapeHtml(spot.disclaimer)}</small><div class="map-popup-sources"><a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">Rosareke – erfaringskilde</a><a href="${escapeHtml(spot.coordinateSourceUrl)}" target="_blank" rel="noopener noreferrer">Kartverket – stedsnavn/koordinat</a></div></article>`;
+}
+
+function restrictionPopup(zone,regulation={}) {
+  return `<article class="source-map-popup restricted"><span>Gjeldende fredningsgrense</span><h3>${escapeHtml(zone.name)}</h3><p class="legal-warning"><b>Alt fiske forbudt hele året</b><br>${escapeHtml(zone.legalText)}</p><p><b>Rød linje:</b> koordinatfestet yttergrense · ${escapeHtml(zone.sourceRef)} · oppgitt lengde ${escapeHtml(zone.lengthM)} m.</p><small>Linjen er yttergrensen, ikke hele flaten. Ved tvil gjelder ajourført Lovdata og offisielt kartvedlegg.</small><div class="map-popup-sources"><a href="${escapeHtml(regulation.url)}" target="_blank" rel="noopener noreferrer">Lovdata ${escapeHtml(regulation.id||'')}</a></div></article>`;
+}
+
+function renderReferenceLayers() {
+  sourceSpotLayer.clearLayers();
+  restrictionLayer.clearLayers();
+  const fishType=$('fishType').value;
+  if(showSourceSpots&&fishType==='sjoorret'&&sourceSpotData) {
+    for(const spot of sourceSpotData.spots) {
+      const restricted=spot.status==='restricted';
+      L.circle([spot.lat,spot.lon],{radius:spot.radiusM,color:restricted?'#ff5d55':'#f2c94c',weight:restricted?3:2,dashArray:restricted?'7 5':'5 5',fillColor:restricted?'#ff5d55':'#f2c94c',fillOpacity:restricted?.12:.08})
+        .bindTooltip(spot.name,{sticky:true,className:restricted?'restricted-source-tip':'source-spot-tip'})
+        .bindPopup(sourceSpotPopup(spot,sourceSpotData.source),{maxWidth:360,className:'source-leaflet-popup'}).addTo(sourceSpotLayer);
+    }
+  }
+  if(showRestrictions&&!freshwaterFishTypes.has(fishType)&&restrictionData) {
+    for(const zone of restrictionData.zones.filter(item=>item.renderBoundary)) {
+      L.polyline(zone.outerBoundary.map(point=>[point.lat,point.lon]),{color:'#ff3b30',weight:6,opacity:.95,dashArray:'12 7',lineCap:'round'})
+        .bindTooltip(`Helårsforbud · ${zone.name}`,{sticky:true,className:'restriction-tip'})
+        .bindPopup(restrictionPopup(zone,restrictionData.regulation),{maxWidth:360,className:'source-leaflet-popup'}).addTo(restrictionLayer);
+    }
+  }
+}
+
+async function loadReferenceLayers() {
+  try {
+    const [spotsResponse,restrictionsResponse]=await Promise.all([
+      fetch('/data/kirkoy-seatrout-spots.json',{cache:'no-cache'}),
+      fetch('/data/fishing-restrictions-2024.json',{cache:'no-cache'})
+    ]);
+    if(!spotsResponse.ok||!restrictionsResponse.ok) throw new Error('Kildelag kunne ikke lastes');
+    [sourceSpotData,restrictionData]=await Promise.all([spotsResponse.json(),restrictionsResponse.json()]);
+    renderReferenceLayers();
+  } catch(error) {
+    const warning=$('warnings');
+    warning.textContent=`${warning.textContent} Kildelag for Kirkøy/fredningsgrenser er midlertidig utilgjengelig.`.trim();
+  }
 }
 function alternativeLuresHtml(alternatives=[]) {
   if (!alternatives.length) return '';
@@ -263,6 +317,8 @@ map.on('dragend zoomend', () => loadZones());
 $('locate').addEventListener('click', () => { setState('locating','Finner posisjonen din …'); map.locate({ setView:true, maxZoom:14, enableHighAccuracy:true }); });
 $('retry').addEventListener('click', () => loadZones({immediate:true}));
 $('fishType').addEventListener('change', () => { $('catchFish').value=$('fishType').value; updateWaterModeUI(); loadZones({immediate:true}); });
+$('sourceSpotToggle').addEventListener('click',()=>{showSourceSpots=!showSourceSpots;$('sourceSpotToggle').setAttribute('aria-pressed',String(showSourceSpots));$('sourceSpotToggle').classList.toggle('layer-active',showSourceSpots);$('sourceSpotToggle').textContent=showSourceSpots?'Kirkøy-steder':'Vis Kirkøy-steder';renderReferenceLayers();});
+$('restrictionToggle').addEventListener('click',()=>{showRestrictions=!showRestrictions;$('restrictionToggle').setAttribute('aria-pressed',String(showRestrictions));$('restrictionToggle').classList.toggle('restriction-active',showRestrictions);$('restrictionToggle').textContent=showRestrictions?'Fredningsgrenser':'Vis fredningsgrenser';renderReferenceLayers();});
 $('nveDepthToggle').addEventListener('click',()=>{const enable=!map.hasLayer(nveDepthLayer);if(enable)nveDepthLayer.addTo(map);else map.removeLayer(nveDepthLayer);$('nveDepthToggle').setAttribute('aria-pressed',String(enable));$('nveDepthToggle').classList.toggle('depth-active',enable);$('nveDepthToggle').textContent=enable?'Skjul NVE-dybde':'NVE dybdekart';});
 $('closeLureViewer').addEventListener('click', () => lureViewer.close());
 lureViewer.addEventListener('click', event => { if (event.target === lureViewer) lureViewer.close(); });
@@ -273,7 +329,8 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.7', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=14.0', { updateViaCache: 'none' }).catch(() => {}));
 initCatchLog();
 updateWaterModeUI();
+loadReferenceLayers();
 loadZones({immediate:true});

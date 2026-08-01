@@ -1,11 +1,13 @@
 {
   "name": "sjoorret-live-kart-v11",
   "version": "11.1.0",
+  "appRevision": 6,
   "description": "Mobilklar PWA for forklarbare fiskesoner i sjø og ferskvann basert på vær, vannmaske og vannkant",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "revision:next": "node scripts/bump-revision.js"
   },
   "engines": {
     "node": ">=20"

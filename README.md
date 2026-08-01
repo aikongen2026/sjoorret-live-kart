@@ -1,4 +1,4 @@
-# Fiste guiden – REV 05
+# Fiste guiden – REV 06
 
 Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
 
@@ -7,7 +7,7 @@ Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
 **Sjø:** sjøørret, makrell og sei.
 **Ferskvann:** ørret, abbor og gjedde.
 
-Sjøørret er fortsatt standardvalg og beholder den etablerte REV 04A-logikken. Ferskvannsartene har egne poengmodeller, forklaringer og anbefalinger for sluktype, vekt, farge og vobblerstørrelse.
+Sjøørret er fortsatt standardvalg og beholder den etablerte sjøørretlogikken. Ferskvannsartene har egne poengmodeller, forklaringer og anbefalinger for sluktype, vekt, farge og vobblerstørrelse.
 
 ## Datagrunnlag
 
@@ -15,6 +15,12 @@ Sjøørret er fortsatt standardvalg og beholder den etablerte REV 04A-logikken. 
 - OpenStreetMap-vannmaske og beregnet vannkant
 - Kartverket sjøkart for sjømodus
 - EMODnet-dybdeestimat bare i sjømodus
+- 17 historisk omtalte sjøørretområder på Kirkøy fra Rosareke, kartfestet som omtrentlige referanseområder – ikke fangstgaranti eller dokumentasjon på lovlig fiske
+- Gjeldende helårs fredningssoner fra FOR-2024-05-23-829 vises som et separat rødt kartlag. Én ugyldig koordinat i Lovdatas kildetekst tegnes ikke.
+
+På desktop står header og kart fast mens resultatpanelet har egen vertikal scrolling. På mobil brukes vanlig dokumentscrolling uten et nestet, låst panel.
+
+Neste synlige revisjon opprettes før publisering med `npm run revision:next`. Kommandoen øker den sentrale `appRevision`-verdien og oppdaterer bare synlig badge og README-overskrift.
 
 Appen viser ikke EMODnet som innsjødybde. I ferskvannsmodus kan brukeren slå på et valgfritt WMS-lag fra **NVE Innsjødatabase/Dybdekart** med de publiserte lagene `DybdeKurve` og `DybdePunkt`. NVE har dybdekart for omtrent 600 kartlagte innsjøer; tomt kartlag betyr derfor «ingen publiserte dybdedata her», ikke null meter. Appen beregner ikke et lokalt dybdetall fra WMS-bildet og antar aldri at alle innsjøer har batymetri.
 
