@@ -101,7 +101,7 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /app\.js\?v=13\.4/);
+  assert.match(html, /app\.js\?v=13\.5/);
   assert.match(sw, /fredrikstad/);
 });
 
@@ -114,6 +114,59 @@ test('passive map resize cannot trigger a repeating zone reload', () => {
 test('mobile map controls meet the 44px touch target', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8');
   assert.match(css, /leaflet-control-zoom a[^}]*44px/s);
+});
+
+test('best fishing times rank upcoming MET hours by species without claiming catch probability', () => {
+  const hourly = [
+    { time:'2026-08-01T04:00:00Z', wind:4, cloud:72, temp:15, precipitation:0 },
+    { time:'2026-08-01T05:00:00Z', wind:5, cloud:68, temp:16, precipitation:0 },
+    { time:'2026-08-01T06:00:00Z', wind:5, cloud:55, temp:17, precipitation:0 },
+    { time:'2026-08-01T10:00:00Z', wind:14, cloud:8, temp:22, precipitation:0 },
+    { time:'2026-08-01T11:00:00Z', wind:15, cloud:5, temp:23, precipitation:0 },
+    { time:'2026-08-01T12:00:00Z', wind:14, cloud:10, temp:23, precipitation:0 }
+  ];
+  const advice=app.bestFishingTimes(hourly,'sjoorret',new Date('2026-08-01T03:45:00Z'));
+  assert.equal(advice.available,true);
+  assert.equal(advice.source,'MET Norway timeprognose + artstilpasset tommelfingerregel');
+  assert.ok(advice.windows.length>=1&&advice.windows.length<=3);
+  assert.equal(advice.windows[0].start,'2026-08-01T04:00:00Z');
+  assert.ok(advice.windows[0].score>=0&&advice.windows[0].score<=100);
+  assert.match(advice.windows[0].reason,/lys|vind|sky/i);
+  assert.match(advice.disclaimer,/veiledende|garanti/i);
+});
+
+test('all supported fish types receive bounded best-time advice from the same forecast', () => {
+  const hourly=Array.from({length:9},(_,index)=>({time:new Date(Date.parse('2026-08-01T04:00:00Z')+index*3600000).toISOString(),wind:4+index/2,cloud:55,temp:15+index/2,precipitation:0}));
+  const reasons=new Set();
+  for(const fish of ['sjoorret','makrell','sei','orret','abbor','gjedde']) {
+    const advice=app.bestFishingTimes(hourly,fish,new Date('2026-08-01T03:45:00Z'));
+    assert.equal(advice.available,true,fish);
+    assert.ok(advice.windows.length>=1&&advice.windows.length<=3,fish);
+    assert.ok(advice.windows.every(window=>window.score>=0&&window.score<=100),fish);
+    reasons.add(advice.windows[0].reason);
+  }
+  assert.ok(reasons.size>=4,'artsrådene skal ikke være identiske');
+});
+
+test('best fishing times fail honestly when no remaining forecast hours exist today', () => {
+  const advice=app.bestFishingTimes([{time:'2026-08-01T04:00:00Z',wind:4,cloud:60}], 'abbor', new Date('2026-08-02T08:00:00Z'));
+  assert.equal(advice.available,false);
+  assert.deepEqual(advice.windows,[]);
+  assert.match(advice.message,/ingen|tilgjengelig/i);
+});
+
+test('catch log and best-time UI are local-first, escaped, and present in the PWA shell', () => {
+  const root=path.join(__dirname,'..','public');
+  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+  const appJs=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  assert.match(html,/id="bestTimes"/);
+  assert.match(html,/id="catchForm"/);
+  assert.match(html,/id="catchEntries"/);
+  assert.match(appJs,/fiste-guiden-catch-log-v1/);
+  assert.match(appJs,/localStorage\.getItem/);
+  assert.match(appJs,/localStorage\.setItem/);
+  assert.match(appJs,/escapeHtml/);
+  assert.doesNotMatch(appJs,/fetch\([^\n]*(catch|fangst)/i);
 });
 
 test('recommendLure chooses a visible warm lure for low light in sheltered water', () => {

@@ -6,11 +6,11 @@
   <meta name="theme-color" content="#061713">
   <meta name="description" content="Fiste guiden analyserer sjø, innsjøer, vannkanter og vær for sjøørret, makrell, sei, ferskvannsørret, abbor og gjedde.">
   <title>Fiste guiden</title>
-  <link rel="manifest" href="/manifest.webmanifest?v=13.4">
+  <link rel="manifest" href="/manifest.webmanifest?v=13.5">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="/style.css?v=13.4">
+  <link rel="stylesheet" href="/style.css?v=13.5">
 </head>
 <body>
 <a class="skip" href="#results">Hopp til resultater</a>
@@ -25,7 +25,9 @@
       <section class="card mask-card"><div><span class="card-label">Vannmaske</span><b id="mask">Kontrollerer vann og vannkant …</b></div><span class="pulse" aria-hidden="true"></span></section>
       <p id="warnings" class="warning" aria-live="polite"></p>
       <section class="card"><div class="card-head"><div><span class="card-label">Forhold nå</span><h2>Værmodell ved kartets sentrum</h2></div><span class="source-dot">Modell</span></div><div id="weatherGrid" class="weather-grid"><p class="muted span-all">Laster vær …</p></div><p id="analysisSources" class="source-details">Kilder og oppdateringstid lastes …</p></section>
+      <section class="card best-times-card"><div class="card-head"><div><span class="card-label">Planlegg turen</span><h2>Beste tidspunkt i dag</h2></div><span class="source-dot">Prognose</span></div><div id="bestTimes" aria-live="polite"><p class="muted">Beregner dagens tidsvinduer …</p></div></section>
       <section class="card zones-card"><div class="card-head"><div><span class="card-label">Rangert etter forhold</span><h2>Anbefalte soner og sluk</h2></div><span class="info" title="Scoren rangerer beregnede fiskeforhold. Datagrunnlag vises separat.">i</span></div><p id="scoreDisclaimer" class="score-disclaimer"><b>Fiskeforhold</b> rangeres fra 0–100. Scoren er ikke fangstsannsynlighet. <b>Datagrunnlag</b> viser hvor komplette kildene er.</p><div class="zone-columns" aria-hidden="true"><span>Område og forhold</span><span>Anbefalt sluk</span><span>Score</span></div><div id="zones" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div></div></section>
+      <section class="card catch-log-card"><div class="card-head"><div><span class="card-label">Min historikk</span><h2>Fangstlogg</h2></div><span class="local-badge">Kun denne enheten</span></div><p class="catch-privacy">Loggen lagres lokalt i nettleseren og sendes ikke til serveren.</p><form id="catchForm" class="catch-form"><label><span>Resultat</span><select name="result" required><option value="fangst">Fangst</option><option value="ingen-fangst">Ingen fangst</option></select></label><label><span>Dato og tid</span><input id="catchTime" name="time" type="datetime-local" required></label><label><span>Fisketype</span><select id="catchFish" name="fish" required><option value="sjoorret">Sjøørret</option><option value="makrell">Makrell</option><option value="sei">Sei</option><option value="orret">Ørret (ferskvann)</option><option value="abbor">Abbor</option><option value="gjedde">Gjedde</option></select></label><label><span>Sted</span><input id="catchPlace" name="place" type="text" maxlength="100" placeholder="Fylles med kartposisjon hvis tomt"></label><label><span>Lengde (cm)</span><input name="length" type="number" min="1" max="250" step="0.1" inputmode="decimal" placeholder="Valgfritt"></label><label><span>Vekt (kg)</span><input name="weight" type="number" min="0.01" max="300" step="0.01" inputmode="decimal" placeholder="Valgfritt"></label><label class="span-two"><span>Sluk/agn</span><input name="lure" type="text" maxlength="120" placeholder="For eksempel Rosa tiger 18 g"></label><label class="span-two"><span>Notat</span><textarea name="note" maxlength="500" rows="3" placeholder="Forhold, følgefisk eller annet du vil huske"></textarea></label><button type="submit" class="span-two">Lagre i fangstloggen</button></form><p id="catchStatus" class="catch-status" role="status" aria-live="polite"></p><div id="catchEntries" class="catch-entries" aria-live="polite"></div></section>
       <section class="card tip"><b>Tips på mobil</b><span>Åpne i Chrome → meny ⋮ → «Legg til på startskjerm». Appskallet kan åpnes offline; nye analyser krever nett.</span></section>
     </aside>
   </main>
@@ -34,6 +36,6 @@
 <dialog id="lureViewer" aria-labelledby="lureViewerCaption"><button id="closeLureViewer" type="button" aria-label="Lukk forstørret slukbilde">×</button><img id="lureViewerImage" alt=""><p id="lureViewerCaption"></p></dialog>
 <noscript>Appen krever JavaScript for kart og analyse.</noscript>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/app.js?v=13.4"></script>
+<script src="/app.js?v=13.5"></script>
 </body>
 </html>

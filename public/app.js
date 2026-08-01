@@ -12,6 +12,9 @@ let controller;
 let locationMarker;
 const labels = { vind:'Vind', skydekke:'Skydekke', kyst:'Kyst', vannkant:'Vannkant', eksponering:'Eksponering', temperatur:'Temperatur', lufttemperatur:'Lufttemperatur', tidspunkt:'Tidspunkt', dybde:'Dybde' };
 const freshwaterFishTypes = new Set(['orret','abbor','gjedde']);
+const catchStorageKey='fiste-guiden-catch-log-v1';
+const fishLabels={sjoorret:'Sjøørret',makrell:'Makrell',sei:'Sei',orret:'Ørret (ferskvann)',abbor:'Abbor',gjedde:'Gjedde'};
+let latestWeather=null;
 const lureViewer = $('lureViewer');
 const lureViewerImage = $('lureViewerImage');
 const lureViewerCaption = $('lureViewerCaption');
@@ -50,6 +53,91 @@ function renderWeather(weather) {
     ['Trend', trend],
     ['Kilde', weather.source || 'MET Norway']
   ].map(([label,value]) => `<div class="weather-item"><span>${label}</span><strong>${value}</strong></div>`).join('');
+}
+function escapeHtml(value) {
+  return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+}
+function formatClock(value) {
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?'–':date.toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit'});
+}
+function renderBestTimes(advice={}) {
+  if(!advice.available||!Array.isArray(advice.windows)||!advice.windows.length) {
+    $('bestTimes').innerHTML=`<p class="muted">${escapeHtml(advice.message||'Dagens tidsprognose er ikke tilgjengelig akkurat nå.')}</p><small class="best-times-source">${escapeHtml(advice.source||'MET Norway')}</small>`;
+    return;
+  }
+  const calculated=advice.generatedAt?` · beregnet ${formatSourceTime(advice.generatedAt)}`:'';
+  $('bestTimes').innerHTML=`<div class="time-windows">${advice.windows.map((window,index)=>`<article class="time-window" data-rank="${index+1}"><div><span>${index===0?'Beste vindu':`Alternativ ${index+1}`}</span><b>${formatClock(window.start)}–${formatClock(window.end)}</b></div><strong>${escapeHtml(window.label)} · ${Number(window.score)||0}/100</strong><small>${escapeHtml(window.reason)}</small></article>`).join('')}</div><p class="best-times-disclaimer">${escapeHtml(advice.disclaimer||'Veiledende anbefaling – ingen garanti for fangst.')}</p><small class="best-times-source">Kilde: ${escapeHtml(advice.source||'MET Norway')}${calculated}</small>`;
+}
+function localDateTimeValue(date=new Date()) {
+  return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);
+}
+function readCatchEntries() {
+  try {
+    const parsed=JSON.parse(localStorage.getItem(catchStorageKey)||'[]');
+    return Array.isArray(parsed)?parsed.filter(entry=>entry&&typeof entry==='object').slice(0,200):[];
+  } catch {
+    $('catchStatus').textContent='Kunne ikke lese den lokale fangstloggen. Nye poster kan fortsatt lagres.';
+    return [];
+  }
+}
+function writeCatchEntries(entries) {
+  try { localStorage.setItem(catchStorageKey,JSON.stringify(entries.slice(0,200))); return true; }
+  catch { $('catchStatus').textContent='Kunne ikke lagre lokalt. Kontroller at nettleserlagring er tillatt.'; return false; }
+}
+function catchWeatherText(weather) {
+  weather=weather||{};
+  const parts=[];
+  if(Number.isFinite(weather.wind)) parts.push(`${weather.wind} m/s`);
+  if(Number.isFinite(weather.cloud)) parts.push(`${Math.round(weather.cloud)} % skydekke`);
+  if(Number.isFinite(weather.temp)) parts.push(`${weather.temp} °C`);
+  return parts.join(' · ');
+}
+function renderCatchEntries(entries=readCatchEntries()) {
+  if(!entries.length) {
+    $('catchEntries').innerHTML='<div class="empty catch-empty"><b>Ingen turer registrert ennå</b><span>Registrer både fangst og turer uten fangst. Det gir et ærligere erfaringsgrunnlag.</span></div>';
+    return;
+  }
+  $('catchEntries').innerHTML=entries.map(entry=>{
+    const date=new Date(entry.time);
+    const when=Number.isNaN(date.getTime())?'Ukjent tid':date.toLocaleString('no-NO',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const metrics=[entry.length?`${escapeHtml(entry.length)} cm`:null,entry.weight?`${escapeHtml(entry.weight)} kg`:null].filter(Boolean).join(' · ');
+    const weather=catchWeatherText(entry.weather);
+    return `<article class="catch-entry" data-catch-id="${escapeHtml(entry.id)}"><div class="catch-entry-head"><div><span class="catch-result ${entry.result==='fangst'?'caught':'blank'}">${entry.result==='fangst'?'Fangst':'Ingen fangst'}</span><b>${escapeHtml(fishLabels[entry.fish]||entry.fish||'Ukjent art')}</b></div><button type="button" class="delete-catch secondary" data-delete-catch="${escapeHtml(entry.id)}" aria-label="Slett loggpost">Slett</button></div><time datetime="${escapeHtml(entry.time)}">${escapeHtml(when)}</time><p><b>${escapeHtml(entry.place||'Ukjent sted')}</b>${metrics?` · ${metrics}`:''}</p>${entry.lure?`<p>Sluk/agn: ${escapeHtml(entry.lure)}</p>`:''}${weather?`<small>Registrert vær: ${escapeHtml(weather)}</small>`:''}${entry.note?`<blockquote>${escapeHtml(entry.note)}</blockquote>`:''}</article>`;
+  }).join('');
+}
+function setCatchDefaults() {
+  $('catchTime').value=localDateTimeValue();
+  $('catchFish').value=$('fishType').value;
+}
+function initCatchLog() {
+  setCatchDefaults();
+  renderCatchEntries();
+  $('catchForm').addEventListener('submit',event=>{
+    event.preventDefault();
+    const form=new FormData(event.currentTarget);
+    const center=map.getCenter();
+    const rawTime=String(form.get('time')||'');
+    const parsedTime=new Date(rawTime);
+    if(!rawTime||Number.isNaN(parsedTime.getTime())) { $('catchStatus').textContent='Velg gyldig dato og tidspunkt.'; return; }
+    const entry={
+      id:globalThis.crypto?.randomUUID?.()||`catch-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      createdAt:new Date().toISOString(),result:String(form.get('result')||'ingen-fangst'),time:parsedTime.toISOString(),fish:String(form.get('fish')||$('fishType').value),
+      place:String(form.get('place')||'').trim()||`Kartposisjon ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`,
+      length:String(form.get('length')||'').trim(),weight:String(form.get('weight')||'').trim(),lure:String(form.get('lure')||'').trim().slice(0,120),note:String(form.get('note')||'').trim().slice(0,500),
+      mapCenter:{lat:Number(center.lat.toFixed(5)),lon:Number(center.lng.toFixed(5))},weather:latestWeather?{wind:latestWeather.wind,cloud:latestWeather.cloud,temp:latestWeather.temp,observedAt:latestWeather.observedAt}:null
+    };
+    const entries=[entry,...readCatchEntries()];
+    if(!writeCatchEntries(entries)) return;
+    event.currentTarget.reset(); setCatchDefaults(); renderCatchEntries(entries);
+    $('catchStatus').textContent='Loggpost lagret lokalt på denne enheten.';
+  });
+  $('catchEntries').addEventListener('click',event=>{
+    const button=event.target.closest?.('[data-delete-catch]'); if(!button) return;
+    if(!confirm('Slette denne loggposten?')) return;
+    const entries=readCatchEntries().filter(entry=>entry.id!==button.dataset.deleteCatch);
+    if(writeCatchEntries(entries)){renderCatchEntries(entries);$('catchStatus').textContent='Loggpost slettet.';}
+  });
 }
 function breakdownHtml(breakdown={}) {
   return Object.entries(breakdown).map(([key,value]) => `<span class="factor">${labels[key] || key}: <b>+${value}</b></span>`).join('');
@@ -115,6 +203,7 @@ function selectZone(zoneId,{scroll=false}={}) {
     layer.setStyle({weight:layer._zoneId===zoneId?4:2,fillOpacity:(layer._zoneId===zoneId ? .48 : .34)});
   });
   const row=document.querySelector(`[data-zone="${zoneId}"]`);
+  if(row&&!$('catchPlace').value) $('catchPlace').value=row.querySelector('.zone-title b')?.textContent||'';
   if (scroll) row?.scrollIntoView({behavior:'smooth',block:'center'});
 }
 function renderZones(zones) {
@@ -152,7 +241,7 @@ async function loadZones({ immediate=false }={}) {
       const response = await fetch(`/api/zones?${searchParams}`, { cache:'no-store', signal:controller.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `API-feil ${response.status}`);
-      renderWeather(data.weather); renderSources(data.weather,data.stats || {}); renderZones(data.zones || []);
+      latestWeather=data.weather||null; renderWeather(data.weather); renderSources(data.weather,data.stats || {}); renderBestTimes(data.bestTimes); renderZones(data.zones || []);
       $('mask').textContent = data.stats?.waterMaskAvailable === false ? 'Vannmasken er midlertidig utilgjengelig.' : `Aktiv · ${data.stats?.tested ?? 0} kandidater kontrollert · ${data.stats?.rejected ?? 0} forkastet`;
       $('warnings').textContent = (data.warnings || []).join(' ');
       setState('ready',`Oppdatert ${new Date().toLocaleTimeString('no-NO',{hour:'2-digit',minute:'2-digit'})} · ${(data.zones || []).length} soner`);
@@ -169,7 +258,7 @@ async function loadZones({ immediate=false }={}) {
 map.on('dragend zoomend', () => loadZones());
 $('locate').addEventListener('click', () => { setState('locating','Finner posisjonen din …'); map.locate({ setView:true, maxZoom:14, enableHighAccuracy:true }); });
 $('retry').addEventListener('click', () => loadZones({immediate:true}));
-$('fishType').addEventListener('change', () => { updateWaterModeUI(); loadZones({immediate:true}); });
+$('fishType').addEventListener('change', () => { $('catchFish').value=$('fishType').value; updateWaterModeUI(); loadZones({immediate:true}); });
 $('closeLureViewer').addEventListener('click', () => lureViewer.close());
 lureViewer.addEventListener('click', event => { if (event.target === lureViewer) lureViewer.close(); });
 document.addEventListener('click', event => { const image=event.target.closest?.('.zoomable-lure'); if (!image) return; event.preventDefault(); event.stopPropagation(); openLureViewer(image.currentSrc || image.src, image.alt); }, true);
@@ -179,6 +268,7 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.4', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.5', { updateViaCache: 'none' }).catch(() => {}));
+initCatchLog();
 updateWaterModeUI();
 loadZones({immediate:true});

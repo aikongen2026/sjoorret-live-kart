@@ -570,6 +570,88 @@ async function fetchBuffer(url, headers = {}, timeoutMs = 7000) {
   } finally { clearTimeout(timeout); }
 }
 
+function osloDateKey(value) {
+  const date=value instanceof Date?value:new Date(value);
+  if(Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Oslo',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+}
+function fishingHourScore(item,fishType) {
+  const fish=normalizeFishType(fishType);
+  const hour=norwegianHour(new Date(item.time));
+  const lowLight=hour<=9||hour>=18;
+  let score=38;
+  let lightText='normale lysforhold';
+  if(['sjoorret','orret'].includes(fish)) {
+    if(lowLight){score+=28;lightText='gunstig morgen-/kveldslys';}
+    else {score+=10;lightText='lysere dagperiode';}
+  } else if(fish==='sei') {
+    if(hour<=8||hour>=19){score+=25;lightText='lavt lys som ofte er aktuelt for sei';}
+    else {score+=12;lightText='daglys';}
+  } else if(fish==='makrell') {
+    if((hour>=6&&hour<=11)||(hour>=16&&hour<=21)){score+=23;lightText='morgen-/ettermiddagsperiode for makrell';}
+    else {score+=10;lightText='øvrig dagperiode';}
+  } else if(fish==='abbor') {
+    if((hour>=6&&hour<=11)||(hour>=16&&hour<=21)){score+=22;lightText='aktiv morgen-/kveldsperiode for abbor';}
+    else {score+=9;lightText='roligere lysperiode';}
+  } else if(fish==='gjedde') {
+    if(lowLight){score+=20;lightText='morgen-/kveldslys for gjedde';}
+    else {score+=12;lightText='dagperiode';}
+  }
+  const wind=Number(item.wind);
+  let windText='vinddata mangler';
+  const freshwater=isFreshwaterFish(fish);
+  if(Number.isFinite(wind)) {
+    if(wind>13){score-=14;windText='kraftig vind trekker ned';}
+    else if(wind>10){score+=3;windText='frisk vind';}
+    else if(wind>=(freshwater?1:2)&&wind<=(freshwater?7:9)){score+=20;windText='moderat vind';}
+    else {score+=10;windText='svak vind';}
+  }
+  const cloud=Number(item.cloud);
+  let cloudText='skydata mangler';
+  if(Number.isFinite(cloud)) {
+    if(cloud>=35&&cloud<=90){score+=16;cloudText='gunstig skydekke';}
+    else if(cloud>90){score+=11;cloudText='tett skydekke';}
+    else {score+=4;cloudText='klart vær';}
+  }
+  const precipitation=Number(item.precipitation);
+  if(Number.isFinite(precipitation)&&precipitation>4) score-=8;
+  return {score:clamp(Math.round(score),0,100),reason:`${lightText}, ${windText} og ${cloudText}`};
+}
+function bestFishingTimes(hourly=[],fishType='sjoorret',now=new Date()) {
+  const source='MET Norway timeprognose + artstilpasset tommelfingerregel';
+  const disclaimer='Veiledende forholdsscore – ikke fangstsannsynlighet eller garanti for fangst.';
+  const today=osloDateKey(now);
+  const usable=(Array.isArray(hourly)?hourly:[]).filter(item=>{
+    const time=new Date(item?.time);
+    return item&&today&&osloDateKey(time)===today&&!Number.isNaN(time.getTime())&&time.getTime()>=now.getTime()-15*60*1000;
+  }).sort((a,b)=>new Date(a.time)-new Date(b.time));
+  if(!usable.length) return {available:false,windows:[],source,disclaimer,message:'Ingen gjenværende timeprognose er tilgjengelig for i dag.'};
+  const candidates=[];
+  for(let i=0;i<usable.length;i++) {
+    const group=[usable[i]];
+    for(let j=i+1;j<usable.length&&group.length<3;j++) {
+      const previous=new Date(group[group.length-1].time).getTime();
+      const next=new Date(usable[j].time).getTime();
+      if(next-previous>75*60*1000) break;
+      group.push(usable[j]);
+    }
+    const scored=group.map(item=>fishingHourScore(item,fishType));
+    const score=Math.round(scored.reduce((sum,item)=>sum+item.score,0)/scored.length);
+    const start=group[0].time;
+    const end=new Date(new Date(group[group.length-1].time).getTime()+60*60*1000).toISOString();
+    const best=scored.slice().sort((a,b)=>b.score-a.score)[0];
+    candidates.push({start,end,score,label:score>=82?'Svært gode forhold':score>=68?'Gode forhold':score>=52?'Brukbare forhold':'Svake forhold',reason:best.reason});
+  }
+  candidates.sort((a,b)=>b.score-a.score||new Date(a.start)-new Date(b.start));
+  const windows=[];
+  for(const candidate of candidates) {
+    const overlaps=windows.some(existing=>new Date(candidate.start)<new Date(existing.end)&&new Date(candidate.end)>new Date(existing.start));
+    if(!overlaps) windows.push(candidate);
+    if(windows.length===3) break;
+  }
+  return {available:true,windows,source,disclaimer,generatedAt:new Date(now).toISOString()};
+}
+
 async function weather(lat, lon) {
   const key = `weather:${lat.toFixed(2)},${lon.toFixed(2)}`;
   return cached(key, 10 * 60 * 1000, async () => {
@@ -582,7 +664,8 @@ async function weather(lat, lon) {
     const future = series[Math.min(3, series.length - 1)].data.instant.details;
     const temp = details.air_temperature ?? null;
     const futureTemp = future.air_temperature ?? temp;
-    return { wind: details.wind_speed ?? null, windDirection: details.wind_from_direction ?? null, cloud: details.cloud_area_fraction ?? null, temp, tempTrend: Number.isFinite(temp) && Number.isFinite(futureTemp) ? Number((futureTemp - temp).toFixed(1)) : null, symbol: next.summary?.symbol_code || null, observedAt: first.time, source: 'MET Norway' };
+    const hourly=series.slice(0,36).map(item=>{const instant=item.data?.instant?.details||{},nextHour=item.data?.next_1_hours||{};return {time:item.time,wind:instant.wind_speed??null,windDirection:instant.wind_from_direction??null,cloud:instant.cloud_area_fraction??null,temp:instant.air_temperature??null,precipitation:nextHour.details?.precipitation_amount??null,symbol:nextHour.summary?.symbol_code||null};});
+    return { wind: details.wind_speed ?? null, windDirection: details.wind_from_direction ?? null, cloud: details.cloud_area_fraction ?? null, temp, tempTrend: Number.isFinite(temp) && Number.isFinite(futureTemp) ? Number((futureTemp - temp).toFixed(1)) : null, symbol: next.summary?.symbol_code || null, observedAt: first.time, source: 'MET Norway', hourly };
   });
 }
 
@@ -696,7 +779,7 @@ async function handleApi(req,res,url) {
   try {
     if(url.pathname==='/api/health') return send(res,200,{ok:true,version:'v11-rev05-ferskvann'});
     if(url.pathname==='/api/weather') { const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon')); if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<57||lat>72||lon<3||lon>32) return send(res,400,{error:'Ugyldig lat/lon for norskekysten'}); return send(res,200,await weather(lat,lon)); }
-    if(url.pathname==='/api/zones') { let input,fishType; try{input=validateZoneRequest(url.searchParams.get('bbox'),url.searchParams.get('zoom')||'12');fishType=normalizeFishType(url.searchParams.get('fish')||'sjoorret');}catch(error){return send(res,400,{error:error.message});} if(isFreshwaterFish(fishType)&&(input.east-input.west>0.5||input.north-input.south>0.5)) return send(res,400,{error:'Zoom nærmere vannet for ferskvannsanalyse.'}); const lat=(input.south+input.north)/2,lon=(input.west+input.east)/2; let current=null,weatherWarning=null; try{current=await weather(lat,lon);}catch(error){weatherWarning='Værdata er midlertidig utilgjengelig.';} const result=await generateZones(input,current,fishType); return send(res,200,{...result,fishType,fishLabel:FISH_TYPES[fishType],weather:current,warnings:[weatherWarning,result.stats.warning].filter(Boolean)}); }
+    if(url.pathname==='/api/zones') { let input,fishType; try{input=validateZoneRequest(url.searchParams.get('bbox'),url.searchParams.get('zoom')||'12');fishType=normalizeFishType(url.searchParams.get('fish')||'sjoorret');}catch(error){return send(res,400,{error:error.message});} if(isFreshwaterFish(fishType)&&(input.east-input.west>0.5||input.north-input.south>0.5)) return send(res,400,{error:'Zoom nærmere vannet for ferskvannsanalyse.'}); const lat=(input.south+input.north)/2,lon=(input.west+input.east)/2; let current=null,weatherWarning=null; try{current=await weather(lat,lon);}catch(error){weatherWarning='Værdata er midlertidig utilgjengelig.';} const result=await generateZones(input,current,fishType); const bestTimes=bestFishingTimes(current?.hourly||[],fishType); const publicWeather=current?{...current}:null; if(publicWeather) delete publicWeather.hourly; return send(res,200,{...result,fishType,fishLabel:FISH_TYPES[fishType],weather:publicWeather,bestTimes,warnings:[weatherWarning,result.stats.warning].filter(Boolean)}); }
     return send(res,404,{error:'Ukjent API'});
   } catch(error) { return send(res,500,{error:error.message||String(error)}); }
 }
@@ -706,4 +789,4 @@ function createServer() {
 }
 function startServer(port=PORT) { const server=createServer(); return server.listen(port,()=>{ let ip='localhost'; for(const list of Object.values(os.networkInterfaces())) for(const item of list||[]) if(item.family==='IPv4'&&!item.internal) ip=item.address; console.log(`Fiste guiden kjører på http://${ip}:${port}`); }); }
 if(require.main===module) startServer();
-module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,isFreshwaterFish,parseFreshwaterAreas,freshwaterAtPoint,parseNominatimWater,fetchNominatimWater,fetchFreshwaterAreas,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};
+module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,isFreshwaterFish,parseFreshwaterAreas,freshwaterAtPoint,parseNominatimWater,fetchNominatimWater,fetchFreshwaterAreas,bestFishingTimes,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};
