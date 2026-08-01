@@ -93,6 +93,18 @@ test('map invalidates Leaflet size when the responsive container changes', () =>
   assert.match(appJs, /invalidateSize/);
 });
 
+test('default map starts in Fredrikstad when location is unavailable', () => {
+  const root = path.join(__dirname, '..', 'public');
+  const appJs = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+  assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
+  assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
+  assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
+  assert.match(html, /app\.js\?v=13\.1/);
+  assert.match(sw, /fredrikstad/);
+});
+
 test('passive map resize cannot trigger a repeating zone reload', () => {
   const appJs = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
   assert.doesNotMatch(appJs, /map\.on\(['"]moveend/);

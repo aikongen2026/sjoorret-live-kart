@@ -1,4 +1,4 @@
-const map = L.map('map', { zoomControl: true }).setView([59.05, 10.05], 12);
+const map = L.map('map', { zoomControl: true }).setView([59.21, 10.93], 12);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
 const seaChartLayer = L.tileLayer('https://opencache.statkart.no/gatekeeper/gk/gk.open_gmaps?layers=sjokartraster&zoom={z}&x={x}&y={y}', { opacity: .56, maxZoom: 18, attribution: 'Kartverket' }).addTo(map);
 
@@ -167,6 +167,6 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.0', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.1', { updateViaCache: 'none' }).catch(() => {}));
 updateWaterModeUI();
 loadZones({immediate:true});
