@@ -69,7 +69,7 @@ test('health and static shell advertise v11', async (t) => {
   t.after(() => server.close());
   const port = server.address().port;
   const health = await fetch(`http://127.0.0.1:${port}/api/health`).then(r => r.json());
-  assert.deepEqual(health, { ok: true, version: 'v11' });
+  assert.deepEqual(health, { ok: true, version: 'v11-rev05-ferskvann' });
   const html = await fetch(`http://127.0.0.1:${port}/`).then(r => r.text());
   assert.match(html, /v11/);
   assert.match(html, /offline/i);
@@ -275,7 +275,7 @@ test('lure photos are rendered in zone cards and map popups', () => {
   }
 });
 
-test('fish type validation supports sjøørret, makrell and sei only', () => {
+test('fish type validation keeps the established sea species and rejects unknown values', () => {
   assert.equal(app.normalizeFishType('sjoorret'), 'sjoorret');
   assert.equal(app.normalizeFishType('makrell'), 'makrell');
   assert.equal(app.normalizeFishType('sei'), 'sei');
@@ -349,7 +349,7 @@ test('REV 04A UI explains scoring, numbers zones, and keeps popup compact', () =
   const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
   assert.match(html, /id="scoreDisclaimer"/);
   assert.match(html, /id="analysisSources"/);
-  assert.match(html, /REV 04A/);
+  assert.match(html, /REV 05/);
   assert.match(js, /zone-number/);
   assert.match(js, /data-quality/);
   assert.match(js, /popup-details/);
@@ -358,4 +358,73 @@ test('REV 04A UI explains scoring, numbers zones, and keeps popup compact', () =
   assert.match(css, /\.zone-number/);
   assert.match(css, /\.data-quality/);
   assert.match(css, /\.compact-popup/);
+});
+
+test('freshwater extension validates trout, perch and pike without changing the saltwater default', () => {
+  assert.equal(app.normalizeFishType(), 'sjoorret');
+  assert.equal(app.normalizeFishType('orret'), 'orret');
+  assert.equal(app.normalizeFishType('abbor'), 'abbor');
+  assert.equal(app.normalizeFishType('gjedde'), 'gjedde');
+  assert.equal(app.isFreshwaterFish('orret'), true);
+  assert.equal(app.isFreshwaterFish('abbor'), true);
+  assert.equal(app.isFreshwaterFish('gjedde'), true);
+  assert.equal(app.isFreshwaterFish('sjoorret'), false);
+});
+
+test('freshwater species receive distinct scoring and practical lure advice', () => {
+  const conditions = { hour: 7, cloud: 70, wind: 3, temp: 12, exposure: 0.45, coastQuality: 0.75 };
+  const trout = app.recommendLure({ ...conditions, fishType: 'orret' });
+  const perch = app.recommendLure({ ...conditions, fishType: 'abbor' });
+  const pike = app.recommendLure({ ...conditions, fishType: 'gjedde' });
+  assert.match(trout.reason, /ferskvannsørret|ørret/i);
+  assert.doesNotMatch(trout.reason, /kyst/i);
+  assert.match(trout.weight, /4–12 g|5–12 g/);
+  assert.match(perch.reason, /abbor/i);
+  assert.match(perch.type, /spinner|jigg|skjesluk/i);
+  assert.match(pike.reason, /gjedde/i);
+  assert.match(pike.type, /gjeddesluk|spinnerbait|wobbler/i);
+  assert.notEqual(trout.weight, pike.weight);
+  for (const fishType of ['orret','abbor','gjedde']) {
+    const score = app.computeScore({ ...conditions, fishType });
+    assert.ok(score.score >= 0 && score.score <= 100);
+    assert.ok(Object.hasOwn(score.breakdown, 'vannkant'));
+  }
+});
+
+test('freshwater mode never presents marine depth as an inland measurement', () => {
+  const quality = app.buildDataQuality({
+    waterType: 'freshwater',
+    weather: { wind:3, windDirection:180, cloud:60, temp:12, observedAt:'2026-08-01T08:00:00Z', source:'MET Norway' },
+    depth: null
+  });
+  assert.equal(quality.depth.available, false);
+  assert.match(quality.depth.source, /innsjø|innland/i);
+  assert.doesNotMatch(quality.depth.source, /EMODnet/i);
+  assert.match(quality.summary, /innlandsdybde|dybde/i);
+});
+
+test('freshwater species are visible in the selector and switch off the sea chart', () => {
+  const root = path.join(__dirname, '..', 'public');
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const js = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
+  for (const value of ['orret','abbor','gjedde']) assert.match(html, new RegExp(`value="${value}"`));
+  assert.match(html, /Ferskvann/);
+  assert.match(js, /seaChartLayer/);
+  assert.match(js, /freshwaterFishTypes/);
+  assert.match(js, /map\.removeLayer\(seaChartLayer\)/);
+});
+
+test('freshwater geometry rejects sea points and water marked no fishing', () => {
+  const openLake = app.parseFreshwaterAreas({ elements: [{
+    type:'way', id:1, tags:{ natural:'water', name:'Testvannet' },
+    geometry:[{lat:60,lon:10},{lat:60,lon:10.1},{lat:60.1,lon:10.1},{lat:60.1,lon:10},{lat:60,lon:10}]
+  }] });
+  assert.equal(app.freshwaterAtPoint(60.05,10.05,openLake)?.name, 'Testvannet');
+  assert.equal(app.freshwaterAtPoint(59.9,10.05,openLake), null);
+
+  const closedLake = app.parseFreshwaterAreas({ elements: [{
+    type:'way', id:2, tags:{ natural:'water', name:'Drikkevann', fishing:'no' },
+    geometry:[{lat:60,lon:10},{lat:60,lon:10.1},{lat:60.1,lon:10.1},{lat:60.1,lon:10},{lat:60,lon:10}]
+  }] });
+  assert.equal(app.freshwaterAtPoint(60.05,10.05,closedLake)?.restricted, true);
 });

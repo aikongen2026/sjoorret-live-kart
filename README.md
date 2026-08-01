@@ -1,21 +1,31 @@
-# Sjøørret Live Kart v11
+# Fiske Live Kart v11 – REV 05
 
-Mobilklar PWA som foreslår fiskesoner langs norskekysten. Velg sjøørret, makrell eller sei i nedtrekksmenyen. Analysen kombinerer OSM-vannmaske, kystnærhet, EMODnet-batymetri, vindstyrke og -retning, skydekke, temperaturtrend og norsk lokaltid. Hver sone viser artstilpasset score, forklaring, estimert dybde, slukanbefaling og et effektivt vobbleralternativ.
+Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
 
-Slukanbefalingen viser type, vekt, farge og et miniatyrbilde fra brukerens eget slukutvalg. Vobbleralternativet viser type, størrelse og farge med eget bilde. Begge tilpasses lys/tidspunkt, vind, temperatur, eksponering og estimert dybde.
+## Arter
 
-REV 03 viser inntil 12 anbefalte soner. Sjøørret beholder den eksisterende profilen, mens makrell prioriterer kastbare metallagn og åpnere kystvann, og sei prioriterer kompakte metallagn/pilk samt tilgjengelig dybde. Klikk eller trykk på et slukbilde for å åpne en stor visning; trykk utenfor bildet eller på × for å lukke.
+**Sjø:** sjøørret, makrell og sei.
+**Ferskvann:** ørret, abbor og gjedde.
 
-REV 04A skiller mellom **fiskeforhold** og **datagrunnlag** uten å endre eksisterende poengvekter. Fiskeforhold 0–100 er en veiledende rangering, ikke fangstsannsynlighet. Datagrunnlag viser om værmodell, beregnet kystanalyse og estimert dybde er tilgjengelig, med kilde, datatype og oppdateringstid. Sonene har samme nummer på kartet og i resultatlisten, og kart-popupen viser et kompakt sammendrag med lenke til alle detaljer.
+Sjøørret er fortsatt standardvalg og beholder den etablerte REV 04A-logikken. Ferskvannsartene har egne poengmodeller, forklaringer og anbefalinger for sluktype, vekt, farge og vobblerstørrelse.
 
-Dybden hentes som punktestimat fra EMODnet Bathymetry mean DTM med omtrent 125 m oppløsning og merkes derfor som estimert. For sjøørret får soner på inntil 5 m 7–12 g lett, gruntgående sluk og 6–9 cm flytende/gruntgående vobbler, selv når vinden ellers ville gitt en tung kystsluk. Når dybdedata mangler i en tydelig kystnær eller innelukket sjøørretsone, velger appen gruntvannsutstyr konservativt. Anbefalingene er veiledende startvalg, ikke en fangstgaranti.
+## Datagrunnlag
+
+- MET Norway Locationforecast for vind, skydekke og lufttemperatur
+- OpenStreetMap-vannmaske og beregnet vannkant
+- Kartverket sjøkart for sjømodus
+- EMODnet-dybdeestimat bare i sjømodus
+
+Appen viser ikke EMODnet som innsjødybde. Innlandsdybde er eksplisitt merket som utilgjengelig, og anbefalingen må derfor kombineres med lokale dybdekart, synlige grunner og kunnskap om vegetasjon og struktur.
+
+Slukbildene viser brukerens eksisterende slukutvalg og fungerer som farge-/mønsterretning. Følg alltid anbefalt type, vekt og størrelse – spesielt ved gjeddefiske, der større agn ofte er riktig.
 
 ## Start lokalt
 
 Krever Node.js 20 eller nyere.
 
 ```bash
-npm install
+npm ci
 npm test
 npm start
 ```
@@ -24,19 +34,12 @@ npm start
 
 ## API
 
-- `GET /api/health` → `{ "ok": true, "version": "v11" }`
+- `GET /api/health`
 - `GET /api/weather?lat=59.05&lon=10.05`
-- `GET /api/zones?bbox=9.9,58.9,10.2,59.2&zoom=13&fish=sjoorret`
+- `GET /api/zones?bbox=10.55,59.78,10.85,59.98&zoom=13&fish=orret`
 
-`fish` kan være `sjoorret`, `makrell` eller `sei`. Manglende verdi beholder sjøørret som standard.
+`fish` kan være `sjoorret`, `makrell`, `sei`, `orret`, `abbor` eller `gjedde`. Manglende verdi beholder sjøørret som standard.
 
-Kartutsnitt valideres og må ligge ved norskekysten. Nye analyser krever nett; appskallet kan åpnes offline etter første besøk.
+Kartutsnittet må ligge i Norge. Nye analyser krever nett; appskallet kan åpnes offline etter første besøk.
 
-## Datakilder
-
-- MET Norway Locationforecast
-- OpenStreetMap vannmaske/kartfliser
-- Kartverket sjøkartlag
-- EMODnet Bathymetry mean DTM (estimert dybde, omtrent 125 m oppløsning)
-
-Analysen er veiledende. Kontroller lokale regler, vær og sikkerhet før fiske.
+Analysen er veiledende. Kontroller lokale fiskeregler, fiskekort, fredningsbestemmelser, vær og sikkerhet før fiske.

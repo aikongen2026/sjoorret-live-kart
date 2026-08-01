@@ -1,7 +1,7 @@
 {
-  "name": "Sjøørret Live Kart v11",
-  "short_name": "Sjøørret v11",
-  "description": "Kyst-, vind- og væranalyse for sjøørretfiske langs norskekysten.",
+  "name": "Fiske Live Kart v11",
+  "short_name": "Fiskekart v11",
+  "description": "Kartbaserte fiskeområder og slukanbefalinger for sjø og ferskvann i Norge.",
   "lang": "no",
   "start_url": "/",
   "scope": "/",

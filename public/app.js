@@ -1,6 +1,6 @@
 const map = L.map('map', { zoomControl: true }).setView([59.05, 10.05], 12);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-L.tileLayer('https://opencache.statkart.no/gatekeeper/gk/gk.open_gmaps?layers=sjokartraster&zoom={z}&x={x}&y={y}', { opacity: .56, maxZoom: 18, attribution: 'Kartverket' }).addTo(map);
+const seaChartLayer = L.tileLayer('https://opencache.statkart.no/gatekeeper/gk/gk.open_gmaps?layers=sjokartraster&zoom={z}&x={x}&y={y}', { opacity: .56, maxZoom: 18, attribution: 'Kartverket' }).addTo(map);
 
 const $ = id => document.getElementById(id);
 const zoneLayer = L.layerGroup().addTo(map);
@@ -10,7 +10,8 @@ window.addEventListener('load', () => setTimeout(() => map.invalidateSize({ pan:
 let timer;
 let controller;
 let locationMarker;
-const labels = { vind:'Vind', skydekke:'Skydekke', kyst:'Kyst', eksponering:'Eksponering', temperatur:'Temperatur', tidspunkt:'Tidspunkt', dybde:'Dybde' };
+const labels = { vind:'Vind', skydekke:'Skydekke', kyst:'Kyst', vannkant:'Vannkant', eksponering:'Eksponering', temperatur:'Temperatur', lufttemperatur:'Lufttemperatur', tidspunkt:'Tidspunkt', dybde:'Dybde' };
+const freshwaterFishTypes = new Set(['orret','abbor','gjedde']);
 const lureViewer = $('lureViewer');
 const lureViewerImage = $('lureViewerImage');
 const lureViewerCaption = $('lureViewerCaption');
@@ -59,13 +60,24 @@ function strongestFactorsHtml(breakdown={}) {
 function dataQualityHtml(quality={}) {
   const level=quality.level || 'Begrenset';
   const weather=quality.weather || {}, depth=quality.depth || {}, coast=quality.coast || {};
-  const depthText=depth.available ? `${depth.source || 'EMODnet'} · estimert · ca. ${depth.resolutionM || 125} m oppløsning` : 'Dybde mangler – slukvalget er et konservativt startvalg';
+  const inlandDepth=String(depth.source || '').toLowerCase().includes('innland');
+  const depthText=depth.available ? `${depth.source || 'EMODnet'} · estimert · ca. ${depth.resolutionM || 125} m oppløsning` : inlandDepth ? 'Innlandsdybde er ikke tilgjengelig – vurder lokalt dybdekart og synlige grunner' : 'Dybde mangler – slukvalget er et konservativt startvalg';
   return `<div class="data-quality" data-level="${level.toLowerCase()}"><div><span>Datagrunnlag</span><b>${level}</b></div><small>${quality.summary || 'Kildestatus ukjent'}</small><details><summary>Kilder og usikkerhet</summary><ul><li><b>${weather.kind || 'Værmodell'}:</b> ${weather.source || 'MET Norway'} · ${formatSourceTime(weather.updatedAt)}</li><li><b>${coast.kind || 'Beregnet analyse'}:</b> ${coast.source || 'OSM-vannmaske og kystgeometri'}</li><li><b>Dybde:</b> ${depthText}</li></ul></details></div>`;
 }
 function renderSources(weather,stats={}) {
   const modelTime=formatSourceTime(weather?.observedAt);
   const analysisTime=formatSourceTime(stats.generatedAt);
-  $('analysisSources').innerHTML=`<b>Værmodell:</b> ${weather?.source || 'MET Norway'} · ${modelTime}<br><b>Analyse:</b> ${analysisTime} · OSM-kystgeometri · EMODnet-dybde der tilgjengelig`;
+  const freshwater=stats.waterType === 'freshwater';
+  $('analysisSources').innerHTML=`<b>Værmodell:</b> ${weather?.source || 'MET Norway'} · ${modelTime}<br><b>Analyse:</b> ${analysisTime} · ${freshwater ? 'OSM-vannmaske og innsjø-/elvebredde · innlandsdybde ikke tilgjengelig' : 'OSM-kystgeometri · EMODnet-dybde der tilgjengelig'}`;
+}
+
+function updateWaterModeUI() {
+  const freshwater=freshwaterFishTypes.has($('fishType').value);
+  if (freshwater && map.hasLayer(seaChartLayer)) map.removeLayer(seaChartLayer);
+  if (!freshwater && !map.hasLayer(seaChartLayer)) seaChartLayer.addTo(map);
+  $('analysisMode').textContent=freshwater ? 'Ferskvann · MET Norway · OSM' : 'Sjøanalyse · MET Norway · Kartverket';
+  $('mask').textContent=freshwater ? 'Kontrollerer innsjø/elv og vannkant …' : 'Kontrollerer sjø og kyst …';
+  return freshwater;
 }
 function alternativeLuresHtml(alternatives=[]) {
   if (!alternatives.length) return '';
@@ -119,7 +131,8 @@ async function loadZones({ immediate=false }={}) {
     controller?.abort(); controller = new AbortController();
     const bounds = map.getBounds();
     const bbox = [bounds.getWest(),bounds.getSouth(),bounds.getEast(),bounds.getNorth()].join(',');
-    setState('loading','Analyserer kyst, vind og sjøforhold …');
+    const freshwater=freshwaterFishTypes.has($('fishType').value);
+    setState('loading',freshwater ? 'Analyserer vannkant, vind og ferskvannsforhold …' : 'Analyserer kyst, vind og sjøforhold …');
     $('zones').setAttribute('aria-busy','true');
     try {
       const searchParams = new URLSearchParams({ bbox, zoom:String(map.getZoom()) });
@@ -144,7 +157,7 @@ async function loadZones({ immediate=false }={}) {
 map.on('dragend zoomend', () => loadZones());
 $('locate').addEventListener('click', () => { setState('locating','Finner posisjonen din …'); map.locate({ setView:true, maxZoom:14, enableHighAccuracy:true }); });
 $('retry').addEventListener('click', () => loadZones({immediate:true}));
-$('fishType').addEventListener('change', () => loadZones({immediate:true}));
+$('fishType').addEventListener('change', () => { updateWaterModeUI(); loadZones({immediate:true}); });
 $('closeLureViewer').addEventListener('click', () => lureViewer.close());
 lureViewer.addEventListener('click', event => { if (event.target === lureViewer) lureViewer.close(); });
 document.addEventListener('click', event => { const image=event.target.closest?.('.zoomable-lure'); if (!image) return; event.preventDefault(); event.stopPropagation(); openLureViewer(image.currentSrc || image.src, image.alt); }, true);
@@ -154,5 +167,6 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=12.0', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.0', { updateViaCache: 'none' }).catch(() => {}));
+updateWaterModeUI();
 loadZones({immediate:true});
