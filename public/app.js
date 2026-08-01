@@ -89,13 +89,13 @@ function popupAlternativeLuresHtml(alternatives=[]) {
 }
 function genericCombinationsHtml(combinations=[]) {
   if(!combinations.length) return '';
-  return `<div class="generic-combinations"><span>Andre slukkombinasjoner</span>${combinations.map(choice=>`<article><b>${choice.type} · ${choice.weight}</b><em>◉ ${choice.color}</em><small>${choice.rigging}<br>${choice.use}</small></article>`).join('')}</div>`;
+  return `<div class="generic-combinations"><span>Andre slukkombinasjoner</span>${combinations.map(choice=>`<article><img class="generic-lure-image zoomable-lure" src="${choice.image}" alt="Illustrasjon av ${choice.type} – ${choice.color}" loading="lazy" tabindex="0" role="button"><div><b>${choice.type} · ${choice.weight}</b><em>◉ ${choice.color}</em><small>${choice.rigging}<br>${choice.use}</small></div></article>`).join('')}</div>`;
 }
 function presentationTacticsHtml(lure={}) {
   const presentation=lure.presentation||{};
   const fly=lure.dropperFly||{};
   if(!presentation.band&&!fly.pattern) return '';
-  return `<div class="presentation-tactics"><article><span>Slukhøyde i vannet</span><b>${presentation.band||'Søk trinnvis i vannsøylen'}</b><small>${presentation.method||''}<br><em>${presentation.basis||''}</em></small></article><article class="dropper-fly" data-recommended="${fly.recommended?'yes':'no'}"><span>Opphengerflue · ${fly.recommended?'Ja':'Nei'}</span><b>${fly.pattern||'Ikke anbefalt'}${fly.color&&fly.color!=='Ikke aktuelt'?` · ${fly.color}`:''}</b><small>${fly.distance||''}<br>${fly.reason||''}<br><em>${fly.rulesNote||''}</em></small></article></div>`;
+  return `<div class="presentation-tactics"><article><span>Slukhøyde i vannet</span><b>${presentation.band||'Søk trinnvis i vannsøylen'}</b><small>${presentation.method||''}<br><em>${presentation.basis||''}</em></small></article><article class="dropper-fly" data-recommended="${fly.recommended?'yes':'no'}"><span>Opphengerflue · ${fly.recommended?'Ja':'Nei'}</span>${fly.image?`<img class="dropper-fly-image zoomable-lure" src="${fly.image}" alt="Illustrasjon av ${fly.pattern} – ${fly.color}" loading="lazy" tabindex="0" role="button">`:''}<b>${fly.pattern||'Ikke anbefalt'}${fly.color&&fly.color!=='Ikke aktuelt'?` · ${fly.color}`:''}</b><small>${fly.distance||''}<br>${fly.reason||''}<br><em>${fly.rulesNote||''}</em></small></article></div>`;
 }
 function lureHtml(lure={}) {
   const wobbler = lure.wobbler || {};
@@ -179,6 +179,6 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.2', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=13.3', { updateViaCache: 'none' }).catch(() => {}));
 updateWaterModeUI();
 loadZones({immediate:true});

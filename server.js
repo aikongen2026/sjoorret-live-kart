@@ -244,28 +244,28 @@ function genericLureCombinations({fishType,lowLight,cloud,exposed}) {
   const bright=cloud<35&&!lowLight;
   const choices={
     sjoorret:[
-      {type:'Inline-spinner med smalt blad',weight:'8–15 g',color:lowLight?'Kobber/sort med rødt punkt':'Sølv/blå eller sølv/grønn',rigging:'Enkeltagn på fortom',use:'Jevn innsveiving med korte spinnstopp'},
-      {type:'Myk shad på lett jigghode',weight:'7–10 cm · 5–12 g hode',color:bright?'Perlemor/oliven':'Motorolje, kobber eller mørk rygg',rigging:'Rettmontert shad med én krok',use:'Rolige løft over bunn, tang og renner'}
+      {type:'Inline-spinner med smalt blad',weight:'8–15 g',color:lowLight?'Kobber/sort med rødt punkt':'Sølv/blå eller sølv/grønn',image:'/lures/generated/inline-spinner.svg',rigging:'Enkeltagn på fortom',use:'Jevn innsveiving med korte spinnstopp'},
+      {type:'Myk shad på lett jigghode',weight:'7–10 cm · 5–12 g hode',color:bright?'Perlemor/oliven':'Kobber/brun med mørk rygg',image:'/lures/generated/light-shad.svg',rigging:'Rettmontert shad med én krok',use:'Rolige løft over bunn, tang og renner'}
     ],
     makrell:[
-      {type:'Slank casting-jig',weight:exposed?'30–45 g':'20–35 g',color:lowLight?'Sølv/rosa med kontrast':'Sølv/blå eller holografisk sølv',rigging:'Enkeltagn eller enkel assistkrok',use:'Tell ned og sveiv raskt gjennom stimen'},
-      {type:'Sildesluk med prismatisk side',weight:'18–35 g',color:bright?'Blank sølv/blå':'Sølv/grønn eller sølv/rosa',rigging:'Enkeltagn på slitesterk fortom',use:'Varier mellom rask innsveiving og korte synkepauser'}
+      {type:'Slank casting-jig',weight:exposed?'30–45 g':'20–35 g',color:lowLight?'Sølv/rosa med kontrast':'Sølv/blå eller holografisk sølv',image:'/lures/generated/casting-jig.svg',rigging:'Enkeltagn eller enkel assistkrok',use:'Tell ned og sveiv raskt gjennom stimen'},
+      {type:'Sildesluk med prismatisk side',weight:'18–35 g',color:bright?'Blank sølv/blå':'Sølv/grønn eller sølv/rosa',image:'/lures/generated/herring-spoon.svg',rigging:'Enkeltagn på slitesterk fortom',use:'Varier mellom rask innsveiving og korte synkepauser'}
     ],
     sei:[
-      {type:'Myk shad på jigghode',weight:'10–15 cm · 20–50 g hode',color:lowLight?'Sort/lilla over sølv':'Blå/sølv eller seifarget rygg',rigging:'Rettmontert shad med kraftig enkeltkrok',use:'Fisk trinnvis ned mot kanter og dypere vann'},
-      {type:'Bladpilk eller kompakt casting-jig',weight:exposed?'40–70 g':'30–55 g',color:bright?'Sølv/blå':'Sølv med mørk eller selvlysende kontrast',rigging:'Enkel assistkrok for mindre hekting',use:'Kontrollerte løft og fall i midtre/nedre vannlag'}
+      {type:'Myk shad på jigghode',weight:'10–15 cm · 20–50 g hode',color:lowLight?'Sort/lilla over sølv':'Blå/sølv eller seifarget rygg',image:'/lures/generated/heavy-shad.svg',rigging:'Rettmontert shad med kraftig enkeltkrok',use:'Fisk trinnvis ned mot kanter og dypere vann'},
+      {type:'Bladpilk eller kompakt casting-jig',weight:exposed?'40–70 g':'30–55 g',color:bright?'Sølv/blå':'Sølv med mørk eller selvlysende kontrast',image:'/lures/generated/blade-jig.svg',rigging:'Enkel assistkrok for mindre hekting',use:'Kontrollerte løft og fall i midtre/nedre vannlag'}
     ],
     orret:[
-      {type:'Liten inline-spinner',weight:'4–8 g',color:lowLight?'Kobber/sort':'Sølv/blå eller sølv/grønn',rigging:'Enkeltagn på tynn fortom',use:'Jevn fart langs land, innløp og odder'},
-      {type:'Mikrojigg eller liten shad',weight:'4–7 cm · 3–7 g hode',color:bright?'Naturfarget oliven/perlemor':'Brun, kobber eller mørk rygg',rigging:'Lett jigghode med én krok',use:'Korte løft og pauser langs bunnkanter'}
+      {type:'Liten inline-spinner',weight:'4–8 g',color:lowLight?'Kobber/sort':'Sølv/blå eller sølv/grønn',image:'/lures/generated/small-spinner.svg',rigging:'Enkeltagn på tynn fortom',use:'Jevn fart langs land, innløp og odder'},
+      {type:'Mikrojigg eller liten shad',weight:'4–7 cm · 3–7 g hode',color:bright?'Naturfarget oliven/perlemor':'Brun, kobber eller mørk rygg',image:'/lures/generated/micro-shad.svg',rigging:'Lett jigghode med én krok',use:'Korte løft og pauser langs bunnkanter'}
     ],
     abbor:[
-      {type:'Liten shad på jigghode',weight:'5–9 cm · 4–10 g hode',color:cloud>=60?'Chartreuse/brun kontrast':'Naturfarget grønn/perlemor',rigging:'Rettmontert shad med én krok',use:'Små hopp langs bunn, brygger og sivkanter'},
-      {type:'Liten spinner eller blade bait',weight:'5–12 g',color:lowLight?'Kobber/oransje':'Sølv/grønn eller abborfarget',rigging:'Enkeltagn på fluorokarbonfortom',use:'Søk raskt i midtre vannlag, senk farten ved kontakt'}
+      {type:'Liten shad på jigghode',weight:'5–9 cm · 4–10 g hode',color:cloud>=60?'Chartreuse/brun kontrast':'Naturfarget grønn/perlemor',image:'/lures/generated/perch-shad.svg',rigging:'Rettmontert shad med én krok',use:'Små hopp langs bunn, brygger og sivkanter'},
+      {type:'Liten spinner eller blade bait',weight:'5–12 g',color:lowLight?'Kobber/oransje':'Sølv/grønn eller abborfarget',image:'/lures/generated/blade-bait.svg',rigging:'Enkeltagn på fluorokarbonfortom',use:'Søk raskt i midtre vannlag, senk farten ved kontakt'}
     ],
     gjedde:[
-      {type:'Stor myk shad',weight:'12–20 cm · 20–50 g samlet',color:cloud>=50?'Mørk rygg med chartreuse/oransje':'Mort- eller abborfarget',rigging:'Én egnet krok-rigg og bitefast fortom',use:'Rolig over vegetasjon og langs dypkanter'},
-      {type:'Spinnerbait med én krok',weight:'15–30 g',color:lowLight?'Sort/oransje eller kobber':'Hvit/sølv eller grønn/gul',rigging:'Bitefast fortom; hold over vegetasjonen',use:'Jevn innsveiving gjennom sivbukter og grunne kanter'}
+      {type:'Stor myk shad',weight:'12–20 cm · 20–50 g samlet',color:cloud>=50?'Mørk rygg med chartreuse/oransje':'Mort- eller abborfarget',image:'/lures/generated/pike-shad.svg',rigging:'Én egnet krok-rigg og bitefast fortom',use:'Rolig over vegetasjon og langs dypkanter'},
+      {type:'Spinnerbait med én krok',weight:'15–30 g',color:lowLight?'Sort/oransje eller kobber':'Hvit/sølv eller grønn/gul',image:'/lures/generated/spinnerbait.svg',rigging:'Bitefast fortom; hold over vegetasjonen',use:'Jevn innsveiving gjennom sivbukter og grunne kanter'}
     ]
   };
   return choices[fishType]||choices.sjoorret;
@@ -303,12 +303,12 @@ function lurePresentationAdvice({fishType,depthMeters,lowLight,wind,exposed}) {
 function dropperFlyAdvice({fishType,lowLight,cloud,wind,exposed}) {
   const rulesNote='Kontroller fiskekort og lokale regler: opphengerfluen kan telle som ekstra krok/agn.';
   const baitfishColor=lowLight?'Sort/lilla med litt oransje':'Hvit/sølv med blå eller oliven rygg';
-  if(fishType==='sjoorret') return {recommended:wind<=7, distance:'45–60 cm foran sluken', pattern:'Liten reke-, kutling- eller børstemarkflue', color:lowLight?'Sort/lilla eller kobber/oransje':'Oliven/hvit eller sølv/perlemor', reason:wind<=7?'Aktuelt som ekstra, lett bytte ved rolig til moderat fiske.':'Ikke førstevalg i hard vind; riggen kan tvinne og hekte.', rulesNote};
-  if(fishType==='makrell') return {recommended:wind<=8,distance:'50–80 cm foran sluken',pattern:'Liten silde-/tobisstreamer',color:baitfishColor,reason:wind<=8?'Kan gi en liten byttefisk foran metallagnet når makrellen jager.':'Dropp opphengeren i hard vind for enklere og sikrere kast.',rulesNote};
-  if(fishType==='sei') return {recommended:wind<=8&&!exposed,distance:'50–80 cm foran sluken',pattern:'Slank tobis- eller småfiskstreamer',color:baitfishColor,reason:wind<=8&&!exposed?'Aktuelt i håndterbare forhold når seien tar små byttefisk.':'Bruk ett agn i vind/eksponert sjø for mindre floke og bedre kontroll.',rulesNote};
-  if(fishType==='orret') return {recommended:lowLight&&wind<=4,distance:'40–60 cm foran sluken',pattern:'Liten våtflue eller nymfe',color:lowLight?'Sort/brun eller kobber':'Oliven/brun',reason:lowLight&&wind<=4?'Kan vurderes i rolig vann der lokale regler tillater ekstra krok.':'Ikke standardvalg; bruk én sluk når forhold eller regler er uklare.',rulesNote};
-  if(fishType==='abbor') return {recommended:false,distance:'Ikke anbefalt som standard',pattern:'Ingen opphengerflue',color:'Ikke aktuelt',reason:'Jigg, spinner eller blade bait alene gir bedre kontroll rundt struktur.',rulesNote};
-  return {recommended:false,distance:'Ikke anbefalt',pattern:'Ingen opphengerflue',color:'Ikke aktuelt',reason:'Ved gjeddefiske prioriteres bitefast fortom og ett kontrollert agn.',rulesNote};
+  if(fishType==='sjoorret') return {recommended:wind<=7, distance:'45–60 cm foran sluken', pattern:'Liten reke-, kutling- eller børstemarkflue', color:lowLight?'Sort/lilla eller kobber/oransje':'Oliven/hvit eller sølv/perlemor', image:wind<=7?`/lures/generated/fly-shrimp-${lowLight?'dark':'light'}.svg`:null, reason:wind<=7?'Aktuelt som ekstra, lett bytte ved rolig til moderat fiske.':'Ikke førstevalg i hard vind; riggen kan tvinne og hekte.', rulesNote};
+  if(fishType==='makrell') return {recommended:wind<=8,distance:'50–80 cm foran sluken',pattern:'Liten silde-/tobisstreamer',color:baitfishColor,image:wind<=8?`/lures/generated/fly-baitfish-${lowLight?'dark':'light'}.svg`:null,reason:wind<=8?'Kan gi en liten byttefisk foran metallagnet når makrellen jager.':'Dropp opphengeren i hard vind for enklere og sikrere kast.',rulesNote};
+  if(fishType==='sei') return {recommended:wind<=8&&!exposed,distance:'50–80 cm foran sluken',pattern:'Slank tobis- eller småfiskstreamer',color:baitfishColor,image:wind<=8&&!exposed?`/lures/generated/fly-baitfish-${lowLight?'dark':'light'}.svg`:null,reason:wind<=8&&!exposed?'Aktuelt i håndterbare forhold når seien tar små byttefisk.':'Bruk ett agn i vind/eksponert sjø for mindre floke og bedre kontroll.',rulesNote};
+  if(fishType==='orret') return {recommended:lowLight&&wind<=4,distance:'40–60 cm foran sluken',pattern:'Liten våtflue eller nymfe',color:lowLight?'Sort/brun eller kobber':'Oliven/brun',image:lowLight&&wind<=4?'/lures/generated/fly-wet-dark.svg':null,reason:lowLight&&wind<=4?'Kan vurderes i rolig vann der lokale regler tillater ekstra krok.':'Ikke standardvalg; bruk én sluk når forhold eller regler er uklare.',rulesNote};
+  if(fishType==='abbor') return {recommended:false,distance:'Ikke anbefalt som standard',pattern:'Ingen opphengerflue',color:'Ikke aktuelt',image:null,reason:'Jigg, spinner eller blade bait alene gir bedre kontroll rundt struktur.',rulesNote};
+  return {recommended:false,distance:'Ikke anbefalt',pattern:'Ingen opphengerflue',color:'Ikke aktuelt',image:null,reason:'Ved gjeddefiske prioriteres bitefast fortom og ett kontrollert agn.',rulesNote};
 }
 
 function recommendLure(input = {}) {

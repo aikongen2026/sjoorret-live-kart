@@ -101,7 +101,7 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /app\.js\?v=13\.2/);
+  assert.match(html, /app\.js\?v=13\.3/);
   assert.match(sw, /fredrikstad/);
 });
 
@@ -148,12 +148,12 @@ test('all species receive generic lure combinations, water-column advice and dro
     const lure=app.recommendLure({fishType,hour:6,cloud:75,wind:3,temp:10,exposure:.4,coastQuality:.7,depthMeters:14});
     assert.equal(lure.genericCombinations.length,2,fishType);
     for(const choice of lure.genericCombinations) {
-      assert.deepEqual(Object.keys(choice).sort(),['color','rigging','type','use','weight'].sort());
+      assert.deepEqual(Object.keys(choice).sort(),['color','image','rigging','type','use','weight'].sort());
       for(const value of Object.values(choice)) assert.equal(typeof value,'string');
     }
     assert.deepEqual(Object.keys(lure.presentation).sort(),['band','basis','method','reference'].sort());
     assert.match(lure.presentation.basis,/tommelfingerregel|søketrinn/i);
-    assert.deepEqual(Object.keys(lure.dropperFly).sort(),['color','distance','pattern','reason','recommended','rulesNote'].sort());
+    assert.deepEqual(Object.keys(lure.dropperFly).sort(),['color','distance','image','pattern','reason','recommended','rulesNote'].sort());
     assert.match(lure.dropperFly.rulesNote,/lokale regler|fiskekort/i);
   }
 });
@@ -178,6 +178,35 @@ test('zone UI renders generic combinations, lure height and dropper fly details'
   assert.match(js,/lure\.genericCombinations/);
   assert.match(js,/lure\.presentation/);
   assert.match(js,/lure\.dropperFly/);
+});
+
+test('generated lure and recommended fly illustrations exist, render as SVG, and the rejected color term is removed', () => {
+  const appJs=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const serverSource=fs.readFileSync(path.join(__dirname,'..','server.js'),'utf8');
+  const rejectedColorTerm=['motor','olje'].join('');
+  assert.equal(`${serverSource}\n${appJs}`.toLowerCase().includes(rejectedColorTerm),false);
+  assert.match(appJs,/generic-lure-image/);
+  assert.match(appJs,/dropper-fly-image/);
+  const checked=new Set();
+  for (const fishType of ['sjoorret','makrell','sei','orret','abbor','gjedde']) {
+    const lure=app.recommendLure({fishType,hour:6,cloud:70,wind:3,temp:10,exposure:.3,coastQuality:.7,depthMeters:8});
+    for (const choice of lure.genericCombinations) {
+      assert.match(choice.image,/^\/lures\/generated\/[a-z-]+\.svg$/);
+      checked.add(choice.image);
+    }
+    if(lure.dropperFly.recommended) {
+      assert.match(lure.dropperFly.image,/^\/lures\/generated\/fly-[a-z-]+\.svg$/);
+      checked.add(lure.dropperFly.image);
+    }
+  }
+  assert.ok(checked.size>=15);
+  for(const image of checked) {
+    const file=path.join(__dirname,'..','public',image);
+    assert.equal(fs.existsSync(file),true,image);
+    const svg=fs.readFileSync(file,'utf8');
+    assert.match(svg,/^<svg[^>]+role="img"/);
+    assert.match(svg,/<\/svg>$/);
+  }
 });
 
 test('the user lure catalog contains 18 distinct photographed lures', () => {
