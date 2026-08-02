@@ -1,4 +1,4 @@
-# Fiste guiden – REV 08
+# Fiste guiden – REV 09
 
 Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
 
@@ -31,6 +31,8 @@ Slukbildene viser brukerens eksisterende slukutvalg og fungerer som farge-/møns
 Hver sone viser i tillegg to generiske slukkombinasjoner utenfor det opplastede fotoutvalget, anbefalt slukhøyde i vannsøylen og arts-/forholdsbasert råd om opphengerflue, avstand og farge. De generiske kombinasjonene bruker lokale kopier av ekte Wikimedia Commons-referansefoto. Fotograf, lisens og kildelenke følger hvert bilde, og den maskinlesbare katalogen ligger i `public/lures/open/catalog.json`. Fotoet dokumenterer agntype/form; anbefalt størrelse, vekt og farge står i kortet og kan avvike fra eksemplaret på bildet. Slukhøyden er en praktisk startregel, ikke en målt fiskedybde. Kontroller fiskekort og lokale regler før bruk av ekstra krok eller agn.
 
 REV 08 legger til ett **kildekontrollert valg nå** i hvert sonekort. Katalogen dekker Abu Garcia Toby, Droppen, Atom og Atom Vass, Rapala CountDown og X-Rap Long Cast samt Savage Gear Cannibal Shad og Sandeel. Modellens dokumenterte størrelsesområde, virkemåte eller oppgitte arts-/miljøbruk er kontrollert mot produsentens produktside og lenkes direkte fra kortet. Appen velger deretter en forsiktig variant ut fra valgt art, dato og beregnet solhøyde for sonekoordinatet, MET-vind og nedbør, temperaturtrend, beregnet eksponering og tilgjengelig dybde. Denne vær-/stedsmatchen er en sportsfaglig tommelfingerregel, ikke dokumentert fangsteffekt eller fangstgaranti. Den maskinlesbare kildelisten ligger i `public/data/source-backed-lures.json`; bildene er tydelig merkede Wikimedia-referansefoto for sluktypen og er ikke nødvendigvis bilder av den navngitte modellen.
+
+REV 09 utvider katalogen til tolv kildekontrollerte modeller med Sølvkroken BRIS, Morild Inline, Spesial Classic med UV og URO. Hvert modellkort lenker nå både produsentens dokumentasjon og en separat fag-/artskilde: NJFF for sjøørret, ørret, abbor og gjedde, og Havforskningsinstituttet for makrell og sei. NJFF-lenkene presenteres som erfaringsbaserte sportsfiskeråd og HI-lenkene som artsbiologi – ingen av dem fremstilles som kontrollert dokumentasjon på fangsteffekt.
 
 ## Beste tidspunkt i dag
 

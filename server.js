@@ -342,10 +342,15 @@ function sourceBackedLureChoice({fishType,hour,cloud,wind,temp,tempTrend,precipi
     if(deep) score+=(has('sinking')?6:0)+(has('depth-control')?5:0)+(has('heavy')?4:0);
     if(shallow) score+=(has('shallow')?9:0)+(has('vegetation')?8:0)-(has('deep')?5:0);
     if(heavyRain) score+=(has('contrast')?5:0)+(has('warm')?3:0);
+    if(heavyRain||falling) score+=has('pause')?4:0;
     if(falling) score+=(has('slow')?4:0)+(has('sinking')?2:0);
     if(fishType==='gjedde'&&item.id==='abu-atom-vass'&&shallow) score+=12;
     if(fishType==='sei'&&item.id==='rapala-xrap-long-cast'&&(exposed||deep)) score+=12;
     if(fishType==='makrell'&&item.id==='rapala-xrap-long-cast'&&exposed) score+=10;
+    if(fishType==='sjoorret'&&item.id==='solvkroken-bris'&&lowLight&&exposed) score+=12;
+    if(fishType==='sjoorret'&&item.id==='solvkroken-morild-inline'&&bright&&(exposed||deep)) score+=12;
+    if(fishType==='orret'&&item.id==='solvkroken-spesial-classic-uv'&&(falling||heavyRain)) score+=12;
+    if(['abbor','gjedde'].includes(fishType)&&item.id==='solvkroken-uro'&&shallow) score+=18;
     const tie=(stableLureNumber(`${signature}|${item.id}`)%1000)/1000;
     return {item,score,tie};
   }).sort((a,b)=>b.score-a.score||b.tie-a.tie||a.item.id.localeCompare(b.item.id));
@@ -370,12 +375,21 @@ function sourceBackedLureChoice({fishType,hour,cloud,wind,temp,tempTrend,precipi
     variant=fishType==='gjedde'?'4–5 tommer':'2,5–3 tommer'; color=lowLight||heavyRain?'Mørk rygg eller tydelig kontrast':'Naturfarget oliven/perlemor'; presentation='Fisk med kontrollerte løft og pauser; hold agnet over vegetasjon eller bunn.';
   } else if(selected.id==='savage-sandeel') {
     variant=fishType==='sei'?'5–7 tommer':'5 tommer'; color=lowLight?'Mørk rygg over sølv/perlemor':'Tobisfarget blå/oliven over sølv'; presentation='Jigg trinnvis gjennom vannlagene; unngå ukontrollert bunnkontakt.';
+  } else if(selected.id==='solvkroken-bris') {
+    variant=exposed?'25 g':'15 g'; color=lowLight||heavyRain?'Tydelig kontrast eller varm detalj':'Naturlig sølv/småfisk'; presentation='Varier tempoet, legg inn korte spinnstopp og start grunt før du øker kastelengden.';
+  } else if(selected.id==='solvkroken-morild-inline') {
+    variant=exposed||deep?'22 g':'15 g'; color=lowLight?'Mørk rygg med sølv/kontrast':'Tobisnær blå eller oliven over sølv'; presentation='Bruk korte spinnstopp og la den vibrerende synkefasen arbeide kontrollert i valgt vannlag.';
+  } else if(selected.id==='solvkroken-spesial-classic-uv') {
+    variant=exposed?'10–18 g':'4–10 g'; color=lowLight||heavyRain?'Tydelig kontrast eller varm detalj':'Naturtro sølv/grønn'; presentation='Varier mellom rolig og raskere innsveiving og legg inn korte pauser.';
+  } else if(selected.id==='solvkroken-uro') {
+    variant=fishType==='gjedde'?'6 cm / 10 g · lite gjeddeagn':'4,6 cm / 6 g eller 6 cm / 10 g'; color=lowLight||heavyRain?'Tydelig kontrast':'Naturtro byttefisk'; presentation='Tell ned til ønsket vannlag og varier jevn innsveiving, stopp og korte løft.';
   }
   const conditions=[lowLight?'lavt lys':bright?'klart dagslys':'dempet dagslys',`${wind.toFixed(1)} m/s vind`,Number.isFinite(depthMeters)?`${depthMeters.toLocaleString('no-NO',{maximumFractionDigits:1})} m estimert dybde`:'ukjent dybde'];
   if(Number.isFinite(precipitation)) conditions.push(precipitation>=4?`kraftig nedbør ${precipitation.toFixed(1)} mm/t`:precipitation>=.2?`nedbør ${precipitation.toFixed(1)} mm/t`:'lite eller ingen nedbør');
   if(Number.isFinite(tempTrend)) conditions.push(tempTrend<=-.5?'fallende temperatur':tempTrend>=.5?'stigende temperatur':'stabil temperatur');
   const photo=OPEN_LURE_PHOTO_BY_ID[selected.photoId];
-  return {name:selected.name,maker:selected.maker,family:selected.family,variant,color,presentation,whyNow:`Valgt som startpunkt ved ${conditions.join(', ')}.`,documented:selected.documented,sourceLabel:selected.sourceLabel,sourceUrl:selected.sourceUrl,image:photo.localPath,photo:{sourcePage:photo.sourcePage,creator:photo.creator,license:photo.license,usageNote:photo.usageNote},evidenceLevel:'Produsentdata for modell og størrelse; vær-/stedsmatch er en veiledende tommelfingerregel.'};
+  const guidance=SOURCE_BACKED_LURE_DATA.guidanceSources?.[fishType]||null;
+  return {name:selected.name,maker:selected.maker,family:selected.family,variant,color,presentation,whyNow:`Valgt som startpunkt ved ${conditions.join(', ')}.`,documented:selected.documented,sourceLabel:selected.sourceLabel,sourceUrl:selected.sourceUrl,guidanceLabel:guidance?.label||null,guidanceUrl:guidance?.url||null,guidanceKind:guidance?.kind||null,image:photo.localPath,photo:{sourcePage:photo.sourcePage,creator:photo.creator,license:photo.license,usageNote:photo.usageNote},evidenceLevel:'Produsentdata for modell og størrelse; vær-/stedsmatch er en veiledende tommelfingerregel.'};
 }
 
 function lurePresentationAdvice({fishType,depthMeters,lowLight,wind,exposed}) {

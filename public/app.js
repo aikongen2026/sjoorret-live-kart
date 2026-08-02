@@ -259,7 +259,7 @@ function genericCombinationsHtml(combinations=[]) {
 function sourceBackedLureHtml(choice={}) {
   if(!choice.name) return '';
   const photo=choice.photo||{};
-  return `<section class="source-backed-lure"><span>Kildekontrollert valg nå</span><article><img class="source-backed-lure-image zoomable-lure" src="${escapeHtml(choice.image)}" alt="Referansefoto for ${escapeHtml(choice.family)} – ikke nødvendigvis eksakt ${escapeHtml(choice.name)}" loading="lazy" tabindex="0" role="button"><div><h4>${escapeHtml(choice.maker)} ${escapeHtml(choice.name)}</h4><b>${escapeHtml(choice.family)} · ${escapeHtml(choice.variant)}</b><em>◉ ${escapeHtml(choice.color)}</em><p>${escapeHtml(choice.presentation)}</p><small><b>Hvorfor nå:</b> ${escapeHtml(choice.whyNow)}<br><b>Dokumentert:</b> ${escapeHtml(choice.documented)}<br><i>${escapeHtml(choice.evidenceLevel)}</i></small><div class="source-backed-links"><a href="${escapeHtml(choice.sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(choice.sourceLabel)}</a>${photo.sourcePage?`<a href="${escapeHtml(photo.sourcePage)}" target="_blank" rel="noopener noreferrer">Referansefoto · ${escapeHtml(photo.creator)} · ${escapeHtml(photo.license)}</a>`:''}</div></div></article></section>`;
+  return `<section class="source-backed-lure"><span>Kildekontrollert valg nå</span><article><img class="source-backed-lure-image zoomable-lure" src="${escapeHtml(choice.image)}" alt="Referansefoto for ${escapeHtml(choice.family)} – ikke nødvendigvis eksakt ${escapeHtml(choice.name)}" loading="lazy" tabindex="0" role="button"><div><h4>${escapeHtml(choice.maker)} ${escapeHtml(choice.name)}</h4><b>${escapeHtml(choice.family)} · ${escapeHtml(choice.variant)}</b><em>◉ ${escapeHtml(choice.color)}</em><p>${escapeHtml(choice.presentation)}</p><small><b>Hvorfor nå:</b> ${escapeHtml(choice.whyNow)}<br><b>Dokumentert:</b> ${escapeHtml(choice.documented)}<br><i>${escapeHtml(choice.evidenceLevel)}</i></small><div class="source-backed-links"><a href="${escapeHtml(choice.sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(choice.sourceLabel)}</a>${choice.guidanceUrl?`<a href="${escapeHtml(choice.guidanceUrl)}" target="_blank" rel="noopener noreferrer">Fag-/artskilde · ${escapeHtml(choice.guidanceLabel)}${choice.guidanceKind?` · ${escapeHtml(choice.guidanceKind)}`:''}</a>`:''}${photo.sourcePage?`<a href="${escapeHtml(photo.sourcePage)}" target="_blank" rel="noopener noreferrer">Referansefoto · ${escapeHtml(photo.creator)} · ${escapeHtml(photo.license)}</a>`:''}</div></div></article></section>`;
 }
 function presentationTacticsHtml(lure={}) {
   const presentation=lure.presentation||{};
@@ -353,7 +353,7 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=16.0', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=17.0', { updateViaCache: 'none' }).catch(() => {}));
 initCatchLog();
 updateWaterModeUI();
 loadReferenceLayers();

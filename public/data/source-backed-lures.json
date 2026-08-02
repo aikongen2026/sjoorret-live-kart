@@ -2,6 +2,14 @@
   "name": "Fiste guiden – kildekontrollerte eksempelmodeller",
   "updated": "2026-08-03",
   "method": "Modellspesifikasjoner og bruksområde er kontrollert mot produsentens produktside. Match mot tidspunkt, vær, dybde og sted er en konservativ app-tommelfingerregel, ikke dokumentert fangsteffekt.",
+  "guidanceSources": {
+    "sjoorret": {"label": "NJFF – Sjøørret", "url": "https://www.njff.no/fiske/fiske-i-saltvann/sjoorret", "kind": "Erfaringsbasert sportsfiskeguide"},
+    "orret": {"label": "NJFF – råd om ørretsluk", "url": "https://www.njff.no/fiske/fiske-i-saltvann/sjoorret", "kind": "Erfaringsbasert sportsfiskeguide"},
+    "abbor": {"label": "NJFF – Abbor", "url": "https://www.njff.no/fiske/fiske-i-ferskvann/abbor", "kind": "Erfaringsbasert sportsfiskeguide"},
+    "gjedde": {"label": "NJFF – Gjedde", "url": "https://www.njff.no/fiske/fiske-i-ferskvann/gjedde", "kind": "Erfaringsbasert sportsfiskeguide"},
+    "makrell": {"label": "Havforskningsinstituttet – Makrell", "url": "https://www.hi.no/hi/temasider/arter/makrell", "kind": "Artsbiologi – ikke sluktest"},
+    "sei": {"label": "Havforskningsinstituttet – Sei", "url": "https://www.hi.no/hi/temasider/arter/sei-i-nordsjoen", "kind": "Artsbiologi – ikke sluktest"}
+  },
   "lures": [
     {
       "id": "abu-toby",
@@ -106,6 +114,58 @@
       "sourceUrl": "https://www.savagegear.com/products/sandeel",
       "photoId": "soft-shad",
       "tags": ["shad", "sandeel", "saltwater", "sinking", "depth-control", "natural"]
+    },
+    {
+      "id": "solvkroken-bris",
+      "name": "BRIS",
+      "maker": "Sølvkroken",
+      "family": "Inlinesluk for sjøørret",
+      "species": ["sjoorret"],
+      "documentedRange": "15 og 25 g",
+      "documented": "Produsenten oppgir 15 og 25 g og anbefaler tempoendringer, korte spinnstopp og gradvis søk fra grunt vann til lengre kast.",
+      "sourceLabel": "Sølvkroken – BRIS",
+      "sourceUrl": "https://solvkroken.no/bris/",
+      "photoId": "spoon",
+      "tags": ["spoon", "inline", "saltwater", "casting", "contrast", "pause"]
+    },
+    {
+      "id": "solvkroken-morild-inline",
+      "name": "Morild Inline",
+      "maker": "Sølvkroken",
+      "family": "Tobisimiterende inlinesluk",
+      "species": ["sjoorret"],
+      "documentedRange": "15 og 22 g",
+      "documented": "Produsenten oppgir 15 og 22 g, tobisimitasjon og vibrerende, sideveis synk under spinnstopp.",
+      "sourceLabel": "Sølvkroken – Morild Inline",
+      "sourceUrl": "https://solvkroken.no/morild-inline/",
+      "photoId": "spoon",
+      "tags": ["spoon", "inline", "saltwater", "casting", "sinking", "natural", "sandeel", "pause"]
+    },
+    {
+      "id": "solvkroken-spesial-classic-uv",
+      "name": "Spesial Classic med UV",
+      "maker": "Sølvkroken",
+      "family": "Skjesluk for ferskvannsørret",
+      "species": ["orret"],
+      "documentedRange": "4, 7, 10, 12 og 18 g",
+      "documented": "Produsenten oppgir fem vekter fra 4 til 18 g for ørret/ferskvann og anbefaler variert fart med pauser.",
+      "sourceLabel": "Sølvkroken – Spesial Classic med UV",
+      "sourceUrl": "https://solvkroken.no/spesial-classic-med-uv/",
+      "photoId": "spoon",
+      "tags": ["spoon", "freshwater", "contrast", "slow", "pause"]
+    },
+    {
+      "id": "solvkroken-uro",
+      "name": "URO",
+      "maker": "Sølvkroken",
+      "family": "Synkende, leppeløs wobbler",
+      "species": ["orret", "abbor", "gjedde"],
+      "documentedRange": "4,6 cm / 6 g og 6 cm / 10 g",
+      "documented": "Produsenten oppgir bruk til ørret, abbor og gjedde, to størrelser samt synketid, stopp, jevn innsveiving og vertikal presentasjon.",
+      "sourceLabel": "Sølvkroken – URO",
+      "sourceUrl": "https://solvkroken.no/uro/",
+      "photoId": "wobbler",
+      "tags": ["wobbler", "freshwater", "sinking", "contrast", "pause", "shallow"]
     }
   ]
 }
