@@ -1,7 +1,7 @@
-const CACHE = 'fiste-guiden-rev07-personal-insights-15-0';
+const CACHE = 'fiste-guiden-rev08-source-backed-lures-16-0';
 const SHELL = [
-  '/', '/index.html', '/style.css?v=15.0', '/fishing-insights.js?v=15.0', '/app.js?v=15.0', '/manifest.webmanifest?v=15.0', '/icon.svg',
-  '/data/kirkoy-seatrout-spots.json', '/data/fishing-restrictions-2024.json',
+  '/', '/index.html', '/style.css?v=16.0', '/fishing-insights.js?v=16.0', '/app.js?v=16.0', '/manifest.webmanifest?v=16.0', '/icon.svg',
+  '/data/kirkoy-seatrout-spots.json', '/data/fishing-restrictions-2024.json', '/data/source-backed-lures.json',
   '/lures/spoon-light-silver.jpg', '/lures/spoon-warm-copper.jpg', '/lures/spoon-blue-silver.jpg', '/lures/spoon-compact-spotted.jpg',
   '/lures/blue-silver-shallow.jpg', '/lures/black-silver-diving.jpg', '/lures/gold-orange-lowlight.jpg', '/lures/trout-natural.jpg',
   '/lures/user/a01-silver-scale-spoon.jpg', '/lures/user/a02-gold-stripe-caster.jpg', '/lures/user/a06-blue-spotted-stickbait.jpg',

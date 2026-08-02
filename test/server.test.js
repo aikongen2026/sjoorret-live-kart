@@ -70,7 +70,7 @@ test('health keeps the v11 API version and static shell advertises Fiste guiden'
   t.after(() => server.close());
   const port = server.address().port;
   const health = await fetch(`http://127.0.0.1:${port}/api/health`).then(r => r.json());
-  assert.deepEqual(health,{ok:true,version:'v11-rev05-ferskvann',revision:'REV 07'});
+  assert.deepEqual(health,{ok:true,version:'v11-rev05-ferskvann',revision:'REV 08'});
   const html = await fetch(`http://127.0.0.1:${port}/`).then(r => r.text());
   assert.match(html, /Fiste guiden/);
   assert.match(html, /offline/i);
@@ -85,12 +85,17 @@ test('static JSON source databases are served as their actual documents', async 
   const base = `http://127.0.0.1:${server.address().port}`;
   const spotsResponse=await fetch(`${base}/data/kirkoy-seatrout-spots.json`);
   const restrictionsResponse=await fetch(`${base}/data/fishing-restrictions-2024.json`);
+  const lureSourcesResponse=await fetch(`${base}/data/source-backed-lures.json`);
   assert.equal(spotsResponse.status,200);
   assert.equal(restrictionsResponse.status,200);
+  assert.equal(lureSourcesResponse.status,200);
   const spots=await spotsResponse.json();
   const restrictions=await restrictionsResponse.json();
+  const lureSources=await lureSourcesResponse.json();
   assert.equal(spots.spots.length,17);
   assert.equal(restrictions.zones.length,19);
+  assert.equal(lureSources.lures.length,8);
+  assert.ok(lureSources.lures.every(item=>/^https:\/\/(?:www\.)?(?:rapala\.com|savagegear\.com|abugarcia-fishing\.eu)\//.test(item.sourceUrl)));
 });
 
 test('PWA shell has a real cache and never caches API responses', () => {
@@ -129,9 +134,9 @@ test('revision helper increments the single app revision and formats two digits'
   assert.equal(revision.formatRevision(6),'REV 06');
   const pkg=JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8'));
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
-  assert.equal(pkg.appRevision,7);
+  assert.equal(pkg.appRevision,8);
   assert.match(pkg.scripts['revision:next'],/bump-revision/);
-  assert.match(html,/id="revisionBadge">REV 07<\/span>/);
+  assert.match(html,/id="revisionBadge">REV 08<\/span>/);
 
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'fiste-revision-'));
   fs.mkdirSync(path.join(root,'public'));
@@ -153,9 +158,9 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /fishing-insights\.js\?v=15\.0/);
-  assert.match(html, /app\.js\?v=15\.0/);
-  assert.match(sw, /rev07-personal-insights-15-0/);
+  assert.match(html, /fishing-insights\.js\?v=16\.0/);
+  assert.match(html, /app\.js\?v=16\.0/);
+  assert.match(sw, /rev08-source-backed-lures-16-0/);
 });
 
 test('passive map resize cannot trigger a repeating zone reload', () => {
@@ -201,6 +206,47 @@ test('all supported fish types receive bounded best-time advice from the same fo
   assert.ok(reasons.size>=4,'artsrådene skal ikke være identiske');
 });
 
+test('source-backed lure choices cover all species with traceable manufacturer evidence', () => {
+  for (const fishType of ['sjoorret','makrell','sei','orret','abbor','gjedde']) {
+    const lure=app.recommendLure({fishType,hour:6,cloud:78,wind:5,temp:9,tempTrend:-.8,precipitation:1.4,exposure:.65,coastQuality:.75,depthMeters:14});
+    const choice=lure.researchedChoice;
+    assert.ok(choice,fishType);
+    for(const key of ['name','maker','family','variant','color','presentation','whyNow','documented','sourceLabel','sourceUrl','image','evidenceLevel']) assert.equal(typeof choice[key],'string',`${fishType}:${key}`);
+    assert.match(choice.sourceUrl,/^https:\/\/(?:www\.)?(?:rapala\.com|savagegear\.com|abugarcia-fishing\.eu)\//);
+    assert.match(choice.evidenceLevel,/produsentdata.*tommelfingerregel/i);
+    assert.match(choice.whyNow,/lys|vind|nedbør|temperatur|dybde|vannlag/i);
+    assert.match(choice.image,/^\/lures\/open\/[a-z-]+\.jpg$/);
+    assert.match(choice.photo.sourcePage,/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+  }
+});
+
+test('source-backed selection reacts conservatively to depth, exposure and difficult weather', () => {
+  const saithe=app.recommendLure({fishType:'sei',hour:13,cloud:20,wind:9,temp:12,tempTrend:0,precipitation:0,exposure:.9,coastQuality:.8,depthMeters:28});
+  const pike=app.recommendLure({fishType:'gjedde',hour:20,cloud:85,wind:2,temp:11,tempTrend:-1.4,precipitation:5.2,exposure:.2,coastQuality:.7,depthMeters:2});
+  assert.match(saithe.researchedChoice.name,/X-Rap.*Long Cast/i);
+  assert.match(saithe.researchedChoice.variant,/36|54|12 cm|14 cm/i);
+  assert.match(pike.researchedChoice.name,/Atom/i);
+  assert.match(pike.researchedChoice.whyNow,/nedbør|fallende temperatur/i);
+  assert.doesNotMatch(pike.researchedChoice.whyNow,/fangstgaranti|sikker fangst/i);
+});
+
+test('actual Norwegian solar light replaces fixed clock thresholds when date and coordinates exist', () => {
+  const common={fishType:'sjoorret',hour:20,cloud:15,wind:3,temp:12,tempTrend:0,precipitation:0,exposure:.3,coastQuality:.8,depthMeters:4,lat:59.2,lon:10.9};
+  const summer=app.recommendLure({...common,now:new Date('2026-06-21T18:00:00Z')});
+  const winter=app.recommendLure({...common,now:new Date('2026-12-21T19:00:00Z')});
+  assert.doesNotMatch(summer.researchedChoice.whyNow,/lavt lys/i);
+  assert.match(summer.researchedChoice.whyNow,/dagslys/i);
+  assert.match(winter.researchedChoice.whyNow,/lavt lys/i);
+});
+
+test('zone UI renders a source-backed current choice with an external evidence link', () => {
+  const js=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  assert.match(js,/Kildekontrollert valg nå/);
+  assert.match(js,/lure\.researchedChoice/);
+  assert.match(js,/source-backed-lure/);
+  assert.match(js,/choice\.sourceUrl/);
+});
+
 test('best fishing times fail honestly when no remaining forecast hours exist today', () => {
   const advice=app.bestFishingTimes([{time:'2026-08-01T04:00:00Z',wind:4,cloud:60}], 'abbor', new Date('2026-08-02T08:00:00Z'));
   assert.equal(advice.available,false);
@@ -217,7 +263,7 @@ test('catch log and best-time UI are local-first, escaped, and present in the PW
   assert.match(html,/id="catchEntries"/);
   assert.match(html,/id="speciesGuide"/);
   assert.match(html,/id="catchInsights"/);
-  assert.ok(html.indexOf('fishing-insights.js')<html.indexOf('app.js?v=15.0'));
+  assert.ok(html.indexOf('fishing-insights.js')<html.indexOf('app.js?v=16.0'));
   assert.match(appJs,/fiste-guiden-catch-log-v1/);
   assert.match(appJs,/localStorage\.getItem/);
   assert.match(appJs,/localStorage\.setItem/);
@@ -228,9 +274,9 @@ test('catch log and best-time UI are local-first, escaped, and present in the PW
 test('personal catch insights filter by species and derive honest local patterns', () => {
   const insights=require('../public/fishing-insights.js');
   const entries=[
-    {result:'fangst',fish:'sjoorret',time:'2026-07-01T05:30:00Z',lure:'Rosa tiger 18 g',weather:{wind:3,cloud:70,temp:14}},
+    {result:'fangst',fish:'sjoorret',time:'2026-07-01T05:30:00Z',lure:'Rosa tiger 18 g',weather:{wind:3,cloud:70,precipitation:.4,temp:14,tempTrend:-.5}},
     {result:'ingen-fangst',fish:'sjoorret',time:'2026-07-02T06:15:00Z',lure:'Sølv 20 g',weather:{wind:6,cloud:30,temp:15}},
-    {result:'fangst',fish:'sjoorret',time:'2026-07-03T07:00:00Z',lure:'Rosa tiger 18 g',weather:{wind:4,cloud:80,temp:13}},
+    {result:'fangst',fish:'sjoorret',time:'2026-07-03T07:00:00Z',lure:'Rosa tiger 18 g',weather:{wind:4,cloud:80,precipitation:1.2,temp:13,tempTrend:-1.1}},
     {result:'ingen-fangst',fish:'sjoorret',time:'2026-07-04T18:00:00Z',lure:'Kobber 16 g',weather:{wind:5,cloud:50,temp:16}},
     {result:'fangst',fish:'makrell',time:'2026-07-05T12:00:00Z',lure:'Pilk'}
   ];
@@ -241,6 +287,8 @@ test('personal catch insights filter by species and derive honest local patterns
   assert.equal(result.bestTime.label,'Morgen');
   assert.equal(result.topLure.label,'Rosa tiger 18 g');
   assert.equal(result.caughtWeather.wind,3.5);
+  assert.equal(result.caughtWeather.precipitation,.8);
+  assert.equal(result.caughtWeather.tempTrend,-.8);
   assert.match(result.confidence,/Tidlig mønster/i);
 });
 
@@ -252,6 +300,13 @@ test('personal catch insights do not overstate patterns from too little data', (
   assert.equal(result.topLure,null);
   assert.match(result.confidence,/For lite data/i);
   assert.match(result.message,/minst tre turer/i);
+});
+
+test('personal catch insights never convert missing weather to false zero values', () => {
+  const insightModule=require('../public/fishing-insights.js');
+  const entries=[0,1,2].map(day=>({result:'fangst',fish:'orret',time:`2026-07-0${day+1}T12:00:00Z`,lure:'Spinner',weather:{wind:null,cloud:null,precipitation:null,temp:null,tempTrend:null}}));
+  const result=insightModule.buildCatchInsights(entries,'orret');
+  assert.deepEqual(result.caughtWeather,{wind:null,cloud:null,precipitation:null,temp:null,tempTrend:null});
 });
 
 test('independent species guide covers every supported Fiste guiden species', () => {
@@ -287,7 +342,7 @@ test('recommendLure chooses a long-casting natural lure for bright exposed coast
 
 test('recommendLure always returns the complete UI contract', () => {
   const lure = app.recommendLure({ hour: 12, cloud: 85, wind: 4, temp: 7, tempTrend: -1, exposure: 0.6, coastQuality: 0.8, lat: 63, lon: 9 });
-  assert.deepEqual(Object.keys(lure).sort(), ['alternatives','color','depth','dropperFly','genericCombinations','image','name','presentation','reason','type','weight','wobbler'].sort());
+  assert.deepEqual(Object.keys(lure).sort(), ['alternatives','color','depth','dropperFly','genericCombinations','image','name','presentation','reason','researchedChoice','type','weight','wobbler'].sort());
   for (const key of ['color','name','reason','type','weight']) assert.equal(typeof lure[key], 'string');
   assert.equal(typeof lure.wobbler, 'object');
   assert.equal(lure.alternatives.length, 2);
@@ -387,7 +442,7 @@ test('app name is Fiste guiden in the page and install manifest', () => {
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'..','public','manifest.webmanifest'),'utf8'));
   assert.match(html,/<title>Fiste guiden<\/title>/);
-  assert.match(html,/<h1>Fiste guiden <span id="revisionBadge">REV 07<\/span><\/h1>/);
+  assert.match(html,/<h1>Fiste guiden <span id="revisionBadge">REV 08<\/span><\/h1>/);
   assert.equal(manifest.name,'Fiste guiden');
   assert.equal(manifest.short_name,'Fiste guiden');
 });
@@ -615,7 +670,7 @@ test('REV 04A UI explains scoring, numbers zones, and keeps popup compact', () =
   assert.match(html, /id="analysisSources"/);
   assert.match(js, /zone-number/);
   assert.match(js, /data-quality/);
-  assert.match(html, /REV 07/);
+  assert.match(html, /REV 08/);
   assert.match(js, /popup-details/);
   assert.match(js, /Fiskeforhold/);
   assert.match(js, /Datagrunnlag/);

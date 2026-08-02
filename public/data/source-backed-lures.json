@@ -1,0 +1,111 @@
+{
+  "name": "Fiste guiden – kildekontrollerte eksempelmodeller",
+  "updated": "2026-08-03",
+  "method": "Modellspesifikasjoner og bruksområde er kontrollert mot produsentens produktside. Match mot tidspunkt, vær, dybde og sted er en konservativ app-tommelfingerregel, ikke dokumentert fangsteffekt.",
+  "lures": [
+    {
+      "id": "abu-toby",
+      "name": "Toby Spoon",
+      "maker": "Abu Garcia",
+      "family": "Skjesluk",
+      "species": ["sjoorret", "orret"],
+      "documentedRange": "7–60 g",
+      "documented": "Produsenten oppgir at Toby-serien finnes fra 7 til 60 g.",
+      "sourceLabel": "Abu Garcia – Toby Spoon",
+      "sourceUrl": "https://www.abugarcia-fishing.eu/products/toby-spoon-1409356",
+      "photoId": "spoon",
+      "tags": ["spoon", "casting", "shallow", "silver", "warm"]
+    },
+    {
+      "id": "abu-droppen",
+      "name": "Droppen Spinner",
+      "maker": "Abu Garcia",
+      "family": "Inline-spinner",
+      "species": ["orret", "abbor", "gjedde"],
+      "documentedRange": "4, 6, 8 og 12 g",
+      "documented": "Produsenten beskriver en lavt balansert spinner for små elver og vann, og nevner abbor, gjedde og ørret.",
+      "sourceLabel": "Abu Garcia – Droppen Spinners",
+      "sourceUrl": "https://www.abugarcia-fishing.eu/products/droppen-spinners-1379256",
+      "photoId": "inline-spinner",
+      "tags": ["spinner", "freshwater", "small-water", "shallow", "warm", "silver"]
+    },
+    {
+      "id": "abu-atom",
+      "name": "Atom Spoon",
+      "maker": "Abu Garcia",
+      "family": "Bred skjesluk",
+      "species": ["gjedde"],
+      "documentedRange": "20, 25, 35 og 55 g",
+      "documented": "Produsenten omtaler Atom som en gjeddesluk og anbefaler rolig, jevn innsveiving.",
+      "sourceLabel": "Abu Garcia – Atom Spoon",
+      "sourceUrl": "https://www.abugarcia-fishing.eu/products/atom-spoon-1367593",
+      "photoId": "spoon",
+      "tags": ["spoon", "pike", "deep", "slow", "warm", "silver"]
+    },
+    {
+      "id": "abu-atom-vass",
+      "name": "Atom Vass Spoon",
+      "maker": "Abu Garcia",
+      "family": "Gjeddeskje",
+      "species": ["gjedde"],
+      "documentedRange": "20 og 25 g",
+      "documented": "Produsenten beskriver modellen som en gjeddesluk for ferskvann og anbefaler rolig, jevn innsveiving.",
+      "sourceLabel": "Abu Garcia – Atom Vass Spoon",
+      "sourceUrl": "https://www.abugarcia-fishing.eu/products/atom-vass-spoon-1367594",
+      "photoId": "weedless-spoon",
+      "tags": ["spoon", "pike", "shallow", "vegetation", "slow", "warm", "contrast"]
+    },
+    {
+      "id": "rapala-countdown",
+      "name": "CountDown",
+      "maker": "Rapala",
+      "family": "Synkende minnowvobbler",
+      "species": ["orret", "abbor"],
+      "documentedRange": "Synker ca. 30 cm per sekund",
+      "documented": "Produsenten oppgir omtrent én fot synk per sekund for repeterbar dybdekontroll ved vegetasjon, frie vannlag og bunnstruktur.",
+      "sourceLabel": "Rapala – CountDown",
+      "sourceUrl": "https://www.rapala.com/us_en/countdown",
+      "photoId": "wobbler",
+      "tags": ["minnow", "sinking", "depth-control", "structure", "natural"]
+    },
+    {
+      "id": "rapala-xrap-long-cast",
+      "name": "X-Rap Long Cast",
+      "maker": "Rapala",
+      "family": "Langtkastende saltvannswobbler",
+      "species": ["makrell", "sei"],
+      "documentedRange": "12 cm / 36 g og 14 cm / 54 g",
+      "documented": "Produsenten beskriver en tung saltvannsmodell for lange kast i krevende forhold og rask, jevn innsveiving.",
+      "sourceLabel": "Rapala – X-Rap Long Cast",
+      "sourceUrl": "https://www.rapala.com/us_en/x-rap-long-cast",
+      "photoId": "wobbler",
+      "tags": ["minnow", "saltwater", "casting", "heavy", "fast", "natural", "silver"]
+    },
+    {
+      "id": "savage-cannibal-shad",
+      "name": "Cannibal Shad",
+      "maker": "Savage Gear",
+      "family": "Myk paddle-tail shad",
+      "species": ["orret", "abbor", "gjedde"],
+      "documentedRange": "2,5–5 tommer",
+      "documented": "Produsenten oppgir livlig gange både under synk og innsveiving, og nevner blant annet abbor, ørret og gjedde.",
+      "sourceLabel": "Savage Gear – Cannibal Shad",
+      "sourceUrl": "https://www.savagegear.com/products/cannibal-shad",
+      "photoId": "soft-shad",
+      "tags": ["shad", "sinking", "drop", "retrieve", "freshwater", "natural", "contrast"]
+    },
+    {
+      "id": "savage-sandeel",
+      "name": "Sandeel",
+      "maker": "Savage Gear",
+      "family": "Tobisformet shad/jigg",
+      "species": ["makrell", "sei"],
+      "documentedRange": "5–8 tommer",
+      "documented": "Produsenten oppgir flere størrelser og to festepunkter som gir ulike presentasjoner av det tobisformede agnet.",
+      "sourceLabel": "Savage Gear – Sandeel",
+      "sourceUrl": "https://www.savagegear.com/products/sandeel",
+      "photoId": "soft-shad",
+      "tags": ["shad", "sandeel", "saltwater", "sinking", "depth-control", "natural"]
+    }
+  ]
+}

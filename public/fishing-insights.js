@@ -49,7 +49,7 @@
   };
 
   function finiteAverage(values){
-    const valid=values.map(Number).filter(Number.isFinite);
+    const valid=values.filter(value=>value!==null&&value!==undefined&&value!=='').map(Number).filter(Number.isFinite);
     if(!valid.length) return null;
     return Math.round((valid.reduce((sum,value)=>sum+value,0)/valid.length)*10)/10;
   }
@@ -79,7 +79,7 @@
       fish,sessions,catches,catchRate:sessions?Math.round(catches/sessions*100):0,
       confidence:sessions<3?'For lite data':sessions<10?'Tidlig mønster':'Personlig mønster',
       message:sessions<3?'Registrer minst tre turer for å se forsiktige mønstre.':'Mønstrene bygger bare på dine lokalt lagrede turer.',
-      bestTime:null,topLure:null,caughtWeather:{wind:null,cloud:null,temp:null}
+      bestTime:null,topLure:null,caughtWeather:{wind:null,cloud:null,precipitation:null,temp:null,tempTrend:null}
     };
     if(sessions<3) return result;
 
@@ -109,7 +109,9 @@
     result.caughtWeather={
       wind:finiteAverage(caught.map(entry=>entry.weather?.wind)),
       cloud:finiteAverage(caught.map(entry=>entry.weather?.cloud)),
-      temp:finiteAverage(caught.map(entry=>entry.weather?.temp))
+      precipitation:finiteAverage(caught.map(entry=>entry.weather?.precipitation)),
+      temp:finiteAverage(caught.map(entry=>entry.weather?.temp)),
+      tempTrend:finiteAverage(caught.map(entry=>entry.weather?.tempTrend))
     };
     return result;
   }

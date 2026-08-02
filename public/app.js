@@ -56,6 +56,7 @@ function renderWeather(weather) {
     ['Vind', formatValue(weather.wind, ' m/s')],
     ['Retning', formatValue(Math.round(weather.windDirection), '°')],
     ['Skydekke', formatValue(Math.round(weather.cloud), '%')],
+    ['Nedbør', formatValue(weather.precipitation, ' mm/t')],
     ['Temperatur', formatValue(weather.temp, '°C')],
     ['Trend', trend],
     ['Kilde', weather.source || 'MET Norway']
@@ -97,7 +98,9 @@ function catchWeatherText(weather) {
   const parts=[];
   if(Number.isFinite(weather.wind)) parts.push(`${weather.wind} m/s`);
   if(Number.isFinite(weather.cloud)) parts.push(`${Math.round(weather.cloud)} % skydekke`);
+  if(Number.isFinite(weather.precipitation)) parts.push(`${weather.precipitation} mm/t nedbør`);
   if(Number.isFinite(weather.temp)) parts.push(`${weather.temp} °C`);
+  if(Number.isFinite(weather.tempTrend)) parts.push(`${weather.tempTrend>0?'+':''}${weather.tempTrend} °C / 3 t`);
   return parts.join(' · ');
 }
 function renderFishingInsights(entries=readCatchEntries(),fish=$('fishType').value) {
@@ -148,7 +151,7 @@ function initCatchLog() {
       createdAt:new Date().toISOString(),result:String(form.get('result')||'ingen-fangst'),time:parsedTime.toISOString(),fish:String(form.get('fish')||$('fishType').value),
       place:String(form.get('place')||'').trim()||`Kartposisjon ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`,
       length:String(form.get('length')||'').trim(),weight:String(form.get('weight')||'').trim(),lure:String(form.get('lure')||'').trim().slice(0,120),note:String(form.get('note')||'').trim().slice(0,500),
-      mapCenter:{lat:Number(center.lat.toFixed(5)),lon:Number(center.lng.toFixed(5))},weather:latestWeather?{wind:latestWeather.wind,cloud:latestWeather.cloud,temp:latestWeather.temp,observedAt:latestWeather.observedAt}:null
+      mapCenter:{lat:Number(center.lat.toFixed(5)),lon:Number(center.lng.toFixed(5))},weather:latestWeather?{wind:latestWeather.wind,cloud:latestWeather.cloud,precipitation:latestWeather.precipitation,temp:latestWeather.temp,tempTrend:latestWeather.tempTrend,observedAt:latestWeather.observedAt}:null
     };
     const entries=[entry,...readCatchEntries()];
     if(!writeCatchEntries(entries)) return;
@@ -253,6 +256,11 @@ function genericCombinationsHtml(combinations=[]) {
   if(!combinations.length) return '';
   return `<div class="generic-combinations"><span>Andre slukkombinasjoner</span>${combinations.map(choice=>{const photo=choice.photo||{};const credit=photo.sourcePage?`<a class="lure-credit" href="${escapeHtml(photo.sourcePage)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(photo.usageNote||'Referansefoto for agntype og form')}">Ekte referansefoto · ${escapeHtml(photo.creator||'ukjent fotograf')} · ${escapeHtml(photo.license||'kilde')}</a>`:'';return `<article><img class="generic-lure-image zoomable-lure" src="${escapeHtml(choice.image)}" alt="Ekte referansefoto av ${escapeHtml(choice.type)}" loading="lazy" tabindex="0" role="button"><div><b>${escapeHtml(choice.type)} · ${escapeHtml(choice.weight)}</b><em>◉ ${escapeHtml(choice.color)}</em><small>${escapeHtml(choice.rigging)}<br>${escapeHtml(choice.use)}</small>${credit}</div></article>`;}).join('')}</div>`;
 }
+function sourceBackedLureHtml(choice={}) {
+  if(!choice.name) return '';
+  const photo=choice.photo||{};
+  return `<section class="source-backed-lure"><span>Kildekontrollert valg nå</span><article><img class="source-backed-lure-image zoomable-lure" src="${escapeHtml(choice.image)}" alt="Referansefoto for ${escapeHtml(choice.family)} – ikke nødvendigvis eksakt ${escapeHtml(choice.name)}" loading="lazy" tabindex="0" role="button"><div><h4>${escapeHtml(choice.maker)} ${escapeHtml(choice.name)}</h4><b>${escapeHtml(choice.family)} · ${escapeHtml(choice.variant)}</b><em>◉ ${escapeHtml(choice.color)}</em><p>${escapeHtml(choice.presentation)}</p><small><b>Hvorfor nå:</b> ${escapeHtml(choice.whyNow)}<br><b>Dokumentert:</b> ${escapeHtml(choice.documented)}<br><i>${escapeHtml(choice.evidenceLevel)}</i></small><div class="source-backed-links"><a href="${escapeHtml(choice.sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(choice.sourceLabel)}</a>${photo.sourcePage?`<a href="${escapeHtml(photo.sourcePage)}" target="_blank" rel="noopener noreferrer">Referansefoto · ${escapeHtml(photo.creator)} · ${escapeHtml(photo.license)}</a>`:''}</div></div></article></section>`;
+}
 function presentationTacticsHtml(lure={}) {
   const presentation=lure.presentation||{};
   const fly=lure.dropperFly||{};
@@ -262,7 +270,7 @@ function presentationTacticsHtml(lure={}) {
 function lureHtml(lure={}) {
   const wobbler = lure.wobbler || {};
   const depth = lure.depth || {};
-  return `<div class="lure-cell"><div class="lure-main"><img class="lure-photo zoomable-lure" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="${lure.name || `Eksempel på ${lure.color || 'sølv/blå sluk'}`}" loading="lazy" tabindex="0" role="button"><div><span class="lure-label">Anbefalt sluk</span><b>${lure.name ? `${lure.name} · ` : ''}${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><span class="lure-color">◉ ${lure.color || 'Sølv/blå'}</span><span class="depth-note">Dybde: ${depth.label || 'ukjent'}</span></div></div><small>${lure.reason || 'Tilpass innsveivingen etter forholdene.'}</small>${presentationTacticsHtml(lure)}${genericCombinationsHtml(lure.genericCombinations)}${alternativeLuresHtml(lure.alternatives)}<div class="wobbler-rec"><img class="lure-thumb zoomable-lure" src="${wobbler.image || '/lures/blue-silver-shallow.jpg'}" alt="Eksempel på ${wobbler.color || 'sølv/blå vobbler'}" loading="lazy" tabindex="0" role="button"><div><span>Effektiv vobbler</span><b>${wobbler.type || 'Gruntgående minnowvobbler'} · ${wobbler.size || '8–11 cm'}</b><small>${wobbler.color || 'Sølv/blå med mørk rygg'}</small></div></div></div>`;
+  return `<div class="lure-cell"><div class="lure-main"><img class="lure-photo zoomable-lure" src="${lure.image || '/lures/spoon-blue-silver.jpg'}" alt="${lure.name || `Eksempel på ${lure.color || 'sølv/blå sluk'}`}" loading="lazy" tabindex="0" role="button"><div><span class="lure-label">Anbefalt sluk</span><b>${lure.name ? `${lure.name} · ` : ''}${lure.type || 'Smal kystsluk'} · ${lure.weight || '18–22 g'}</b><span class="lure-color">◉ ${lure.color || 'Sølv/blå'}</span><span class="depth-note">Dybde: ${depth.label || 'ukjent'}</span></div></div><small>${lure.reason || 'Tilpass innsveivingen etter forholdene.'}</small>${presentationTacticsHtml(lure)}${sourceBackedLureHtml(lure.researchedChoice)}${genericCombinationsHtml(lure.genericCombinations)}${alternativeLuresHtml(lure.alternatives)}<div class="wobbler-rec"><img class="lure-thumb zoomable-lure" src="${wobbler.image || '/lures/blue-silver-shallow.jpg'}" alt="Eksempel på ${wobbler.color || 'sølv/blå vobbler'}" loading="lazy" tabindex="0" role="button"><div><span>Effektiv vobbler</span><b>${wobbler.type || 'Gruntgående minnowvobbler'} · ${wobbler.size || '8–11 cm'}</b><small>${wobbler.color || 'Sølv/blå med mørk rygg'}</small></div></div></div>`;
 }
 function compactPopupHtml(zone,index) {
   const lure=zone.lure || {};
@@ -345,7 +353,7 @@ map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); 
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=15.0', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=16.0', { updateViaCache: 'none' }).catch(() => {}));
 initCatchLog();
 updateWaterModeUI();
 loadReferenceLayers();
