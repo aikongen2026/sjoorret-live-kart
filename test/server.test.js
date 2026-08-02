@@ -70,7 +70,7 @@ test('health keeps the v11 API version and static shell advertises Fiste guiden'
   t.after(() => server.close());
   const port = server.address().port;
   const health = await fetch(`http://127.0.0.1:${port}/api/health`).then(r => r.json());
-  assert.deepEqual(health,{ok:true,version:'v11-rev05-ferskvann',revision:'REV 06'});
+  assert.deepEqual(health,{ok:true,version:'v11-rev05-ferskvann',revision:'REV 07'});
   const html = await fetch(`http://127.0.0.1:${port}/`).then(r => r.text());
   assert.match(html, /Fiste guiden/);
   assert.match(html, /offline/i);
@@ -129,9 +129,9 @@ test('revision helper increments the single app revision and formats two digits'
   assert.equal(revision.formatRevision(6),'REV 06');
   const pkg=JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8'));
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
-  assert.equal(pkg.appRevision,6);
+  assert.equal(pkg.appRevision,7);
   assert.match(pkg.scripts['revision:next'],/bump-revision/);
-  assert.match(html,/id="revisionBadge">REV 06<\/span>/);
+  assert.match(html,/id="revisionBadge">REV 07<\/span>/);
 
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'fiste-revision-'));
   fs.mkdirSync(path.join(root,'public'));
@@ -153,8 +153,9 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /app\.js\?v=14\.0/);
-  assert.match(sw, /rev06-kirkoy-rules-14-0/);
+  assert.match(html, /fishing-insights\.js\?v=15\.0/);
+  assert.match(html, /app\.js\?v=15\.0/);
+  assert.match(sw, /rev07-personal-insights-15-0/);
 });
 
 test('passive map resize cannot trigger a repeating zone reload', () => {
@@ -214,11 +215,58 @@ test('catch log and best-time UI are local-first, escaped, and present in the PW
   assert.match(html,/id="bestTimes"/);
   assert.match(html,/id="catchForm"/);
   assert.match(html,/id="catchEntries"/);
+  assert.match(html,/id="speciesGuide"/);
+  assert.match(html,/id="catchInsights"/);
+  assert.ok(html.indexOf('fishing-insights.js')<html.indexOf('app.js?v=15.0'));
   assert.match(appJs,/fiste-guiden-catch-log-v1/);
   assert.match(appJs,/localStorage\.getItem/);
   assert.match(appJs,/localStorage\.setItem/);
   assert.match(appJs,/escapeHtml/);
   assert.doesNotMatch(appJs,/fetch\([^\n]*(catch|fangst)/i);
+});
+
+test('personal catch insights filter by species and derive honest local patterns', () => {
+  const insights=require('../public/fishing-insights.js');
+  const entries=[
+    {result:'fangst',fish:'sjoorret',time:'2026-07-01T05:30:00Z',lure:'Rosa tiger 18 g',weather:{wind:3,cloud:70,temp:14}},
+    {result:'ingen-fangst',fish:'sjoorret',time:'2026-07-02T06:15:00Z',lure:'Sølv 20 g',weather:{wind:6,cloud:30,temp:15}},
+    {result:'fangst',fish:'sjoorret',time:'2026-07-03T07:00:00Z',lure:'Rosa tiger 18 g',weather:{wind:4,cloud:80,temp:13}},
+    {result:'ingen-fangst',fish:'sjoorret',time:'2026-07-04T18:00:00Z',lure:'Kobber 16 g',weather:{wind:5,cloud:50,temp:16}},
+    {result:'fangst',fish:'makrell',time:'2026-07-05T12:00:00Z',lure:'Pilk'}
+  ];
+  const result=insights.buildCatchInsights(entries,'sjoorret');
+  assert.equal(result.sessions,4);
+  assert.equal(result.catches,2);
+  assert.equal(result.catchRate,50);
+  assert.equal(result.bestTime.label,'Morgen');
+  assert.equal(result.topLure.label,'Rosa tiger 18 g');
+  assert.equal(result.caughtWeather.wind,3.5);
+  assert.match(result.confidence,/Tidlig mønster/i);
+});
+
+test('personal catch insights do not overstate patterns from too little data', () => {
+  const insights=require('../public/fishing-insights.js');
+  const result=insights.buildCatchInsights([{result:'fangst',fish:'abbor',time:'2026-07-01T11:00:00Z',lure:'Jigg'}],'abbor');
+  assert.equal(result.sessions,1);
+  assert.equal(result.bestTime,null);
+  assert.equal(result.topLure,null);
+  assert.match(result.confidence,/For lite data/i);
+  assert.match(result.message,/minst tre turer/i);
+});
+
+test('independent species guide covers every supported Fiste guiden species', () => {
+  const fs=require('node:fs');
+  const modulePath=path.join(__dirname,'..','public','fishing-insights.js');
+  const insights=require(modulePath);
+  for(const fish of ['sjoorret','makrell','sei','orret','abbor','gjedde']) {
+    const guide=insights.getSpeciesGuide(fish);
+    assert.equal(guide.id,fish);
+    assert.ok(guide.habitat.length>20);
+    assert.ok(guide.presentation.length>20);
+    assert.ok(guide.waterColumn.length>10);
+    assert.ok(guide.season.length>10);
+  }
+  assert.doesNotMatch(fs.readFileSync(modulePath,'utf8'),/fishbuddy|fiskher/i);
 });
 
 test('recommendLure chooses a visible warm lure for low light in sheltered water', () => {
@@ -339,7 +387,7 @@ test('app name is Fiste guiden in the page and install manifest', () => {
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'..','public','manifest.webmanifest'),'utf8'));
   assert.match(html,/<title>Fiste guiden<\/title>/);
-  assert.match(html,/<h1>Fiste guiden <span id="revisionBadge">REV 06<\/span><\/h1>/);
+  assert.match(html,/<h1>Fiste guiden <span id="revisionBadge">REV 07<\/span><\/h1>/);
   assert.equal(manifest.name,'Fiste guiden');
   assert.equal(manifest.short_name,'Fiste guiden');
 });
@@ -567,7 +615,7 @@ test('REV 04A UI explains scoring, numbers zones, and keeps popup compact', () =
   assert.match(html, /id="analysisSources"/);
   assert.match(js, /zone-number/);
   assert.match(js, /data-quality/);
-  assert.match(html, /REV 06/);
+  assert.match(html, /REV 07/);
   assert.match(js, /popup-details/);
   assert.match(js, /Fiskeforhold/);
   assert.match(js, /Datagrunnlag/);

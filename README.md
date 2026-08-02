@@ -1,4 +1,4 @@
-# Fiste guiden – REV 06
+# Fiste guiden – REV 07
 
 Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
 
@@ -37,6 +37,14 @@ Appen rangerer opptil tre gjenværende tidsvinduer for valgt art. Beregningen br
 ## Fangstlogg
 
 Fangstloggen kan registrere både fangst og ingen fangst, art, dato/tid, sted, lengde, vekt, sluk/agn, notat og et øyeblikksbilde av været. Data lagres bare i nettleserens `localStorage` på den aktuelle enheten og sendes ikke til serveren. Nettleserdata må derfor ikke slettes dersom loggen skal beholdes.
+
+## Artsguide og personlige fangstmønstre
+
+Alle seks arter har en egen veiledende guide for sesong, habitat, presentasjon, vannsøyle og viktige lokale hensyn. Ved artsskifte oppdateres guiden uten at øvrig kartfunksjon endres.
+
+Appen beregner fangstrate, beste tidsrom, mest vellykkede agn og gjennomsnittsvær ved fangst fra den valgte artens lokale fangstlogg. Med færre enn tre turer vises «For lite data» og ingen beste tidsrom eller agn utpekes. Fra tre til ni turer merkes resultatet som et tidlig mønster; først fra ti turer omtales det som et personlig mønster. Også turer uten fangst inngår i fangstraten.
+
+Funksjonene er utviklet selvstendig for Fiste guiden. Ingen eksterne proprietære fangstpunkter, kartdata, apptekster, bilder eller kildekode inngår i modulen.
 
 ## Start lokalt
 
