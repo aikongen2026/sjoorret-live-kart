@@ -70,7 +70,7 @@ test('health keeps the v11 API version and static shell advertises Fiste guiden'
   t.after(() => server.close());
   const port = server.address().port;
   const health = await fetch(`http://127.0.0.1:${port}/api/health`).then(r => r.json());
-  assert.deepEqual(health,{ok:true,version:'v11-rev05-ferskvann',revision:'REV 10'});
+  assert.deepEqual(health,{ok:true,version:'v11-rev05-ferskvann',revision:'REV 11'});
   const html = await fetch(`http://127.0.0.1:${port}/`).then(r => r.text());
   assert.match(html, /Fiste guiden/);
   assert.match(html, /offline/i);
@@ -141,9 +141,9 @@ test('revision helper increments the single app revision and formats two digits'
   assert.equal(revision.formatRevision(6),'REV 06');
   const pkg=JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8'));
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
-  assert.equal(pkg.appRevision,10);
+  assert.equal(pkg.appRevision,11);
   assert.match(pkg.scripts['revision:next'],/bump-revision/);
-  assert.match(html,/id="revisionBadge">REV 10<\/span>/);
+  assert.match(html,/id="revisionBadge">REV 11<\/span>/);
 
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'fiste-revision-'));
   fs.mkdirSync(path.join(root,'public'));
@@ -165,9 +165,9 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /fishing-insights\.js\?v=18\.0/);
-  assert.match(html, /app\.js\?v=18\.0/);
-  assert.match(sw, /rev10-owned-lure-catalog-18-0/);
+  assert.match(html, /fishing-insights\.js\?v=19\.0/);
+  assert.match(html, /app\.js\?v=19\.0/);
+  assert.match(sw, /rev11-water-environment-19-0/);
 });
 
 test('passive map resize cannot trigger a repeating zone reload', () => {
@@ -285,7 +285,7 @@ test('catch log and best-time UI are local-first, escaped, and present in the PW
   assert.match(html,/id="catchEntries"/);
   assert.match(html,/id="speciesGuide"/);
   assert.match(html,/id="catchInsights"/);
-  assert.ok(html.indexOf('fishing-insights.js')<html.indexOf('app.js?v=18.0'));
+  assert.ok(html.indexOf('fishing-insights.js')<html.indexOf('app.js?v=19.0'));
   assert.match(appJs,/fiste-guiden-catch-log-v1/);
   assert.match(appJs,/localStorage\.getItem/);
   assert.match(appJs,/localStorage\.setItem/);
@@ -364,7 +364,7 @@ test('recommendLure chooses a long-casting natural lure for bright exposed coast
 
 test('recommendLure always returns the complete UI contract', () => {
   const lure = app.recommendLure({ hour: 12, cloud: 85, wind: 4, temp: 7, tempTrend: -1, exposure: 0.6, coastQuality: 0.8, lat: 63, lon: 9 });
-  assert.deepEqual(Object.keys(lure).sort(), ['alternatives','color','depth','dropperFly','genericCombinations','image','inventoryNote','name','ownedPhoto','presentation','reason','researchedChoice','type','weight','wobbler'].sort());
+  assert.deepEqual(Object.keys(lure).sort(), ['alternatives','color','depth','dropperFly','genericCombinations','image','inventoryNote','name','ownedPhoto','presentation','reason','researchedChoice','type','waterEnvironment','weight','wobbler'].sort());
   for (const key of ['color','name','reason','type','weight']) assert.equal(typeof lure[key], 'string');
   assert.equal(typeof lure.wobbler, 'object');
   assert.equal(lure.alternatives.length, 2);
@@ -464,7 +464,7 @@ test('app name is Fiste guiden in the page and install manifest', () => {
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'..','public','manifest.webmanifest'),'utf8'));
   assert.match(html,/<title>Fiste guiden<\/title>/);
-  assert.match(html,/<h1>Fiste guiden <span id="revisionBadge">REV 10<\/span><\/h1>/);
+  assert.match(html,/<h1>Fiste guiden <span id="revisionBadge">REV 11<\/span><\/h1>/);
   assert.equal(manifest.name,'Fiste guiden');
   assert.equal(manifest.short_name,'Fiste guiden');
 });
@@ -491,8 +491,23 @@ test('every species starts with an owned photographed lure from the correct wate
     assert.equal(lure.ownedPhoto,true,fishType);
     assert.ok(record,fishType);
     assert.ok(record.species.includes(fishType),fishType);
-    assert.ok(record.waterTypes.includes(app.isFreshwaterFish(fishType)?'freshwater':'saltwater'),fishType);
+    const expectedEnvironment=app.isFreshwaterFish(fishType)?'freshwater':'saltwater';
+    assert.ok(record.waterTypes.includes(expectedEnvironment),fishType);
+    assert.equal(lure.waterEnvironment.id,expectedEnvironment,fishType);
+    assert.equal(lure.waterEnvironment.label,expectedEnvironment==='freshwater'?'Ferskvann':'Saltvann',fishType);
+    assert.match(lure.waterEnvironment.classification,/miljøspesifikk|allround/i,fishType);
+    assert.match(lure.waterEnvironment.basis,/synlig agntype.*produsentdokumentasjon/i,fishType);
+    assert.match(lure.waterEnvironment.caveat,expectedEnvironment==='freshwater'?/fiskekort|lokale regler/i:/rust|saltvann|splittring/i,fishType);
   }
+});
+
+test('the UI visibly labels owned recommendations as saltwater or freshwater', () => {
+  const js=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public','style.css'),'utf8');
+  assert.match(js,/waterEnvironmentHtml/);
+  assert.match(js,/lure\.waterEnvironment/);
+  assert.match(js,/Ditt bildevalg/);
+  assert.match(css,/\.water-environment/);
 });
 
 test('recommendLure returns primary plus two unique photographed alternatives', () => {
@@ -709,7 +724,7 @@ test('REV 04A UI explains scoring, numbers zones, and keeps popup compact', () =
   assert.match(html, /id="analysisSources"/);
   assert.match(js, /zone-number/);
   assert.match(js, /data-quality/);
-  assert.match(html, /REV 10/);
+  assert.match(html, /REV 11/);
   assert.match(js, /popup-details/);
   assert.match(js, /Fiskeforhold/);
   assert.match(js, /Datagrunnlag/);

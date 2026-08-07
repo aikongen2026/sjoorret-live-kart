@@ -494,13 +494,22 @@ function recommendLure(input = {}) {
     wobbler = { type: 'Gruntgående minnowvobbler', size: '8–11 cm', color: 'Sølv/blå med mørk rygg', image: '/lures/blue-silver-shallow.jpg' };
   }
   const depth = { meters: depthMeters, label: noDepth ? `${noDepth} m estimert${conservativeShallow && fishType === 'sjoorret' ? ' · gruntvannsvalg' : ''}` : freshwater ? 'Innlandsdybde ikke tilgjengelig' : `Ukjent${conservativeShallow && fishType === 'sjoorret' ? ' · konservativt gruntvannsvalg' : ''}`, source: depthMeters === null ? null : 'EMODnet DTM (~125 m oppløsning)', estimated: depthMeters !== null, conservativeShallow };
-  const alternatives = alternateItems.map(item => ({ name:item.name, type:item.family, weight:'Kontroller faktisk størrelse og vekt på agnet i bildet', color:item.color, image:item.image, inventoryNote:item.inventoryNote, reason:'Alternativt fotoagn fra din egen samling, klassifisert for samme art og vannmiljø.' }));
+  const environmentId=freshwater?'freshwater':'saltwater';
+  const environmentLabel=freshwater?'Ferskvann':'Saltvann';
+  const waterEnvironment={
+    id:environmentId,
+    label:environmentLabel,
+    classification:primary.waterTypes.length===1?'Miljøspesifikk bildegruppe':'Allroundprofil for begge vannmiljøer',
+    basis:'Eget bilde er klassifisert etter synlig agntype, form og farge. Ukjent modell, vekt og krokfinish behandles ikke som produsentdokumentasjon.',
+    caveat:freshwater?'Kontroller lokale regler, fiskekort og tillatt krokoppsett.':'Saltvannsegnet krok og rustbeskyttelse kan ikke bekreftes fra bildet; skyll agnet i ferskvann og kontroller krok og splittring etter bruk.'
+  };
+  const alternatives = alternateItems.map(item => ({ name:item.name, type:item.family, weight:'Kontroller faktisk størrelse og vekt på agnet i bildet', color:item.color, image:item.image, inventoryNote:item.inventoryNote, environmentLabel, environmentClassification:item.waterTypes.length===1?'Miljøspesifikk':'Allround', reason:'Alternativt fotoagn fra din egen samling, klassifisert for samme art og vannmiljø.' }));
   const genericCombinations=genericLureCombinations({fishType,lowLight,cloud,exposed});
   const researchedChoice=sourceBackedLureChoice({fishType,hour,cloud,wind,temp,tempTrend,precipitation,exposed,depthMeters,lowLight});
   const presentation=lurePresentationAdvice({fishType,depthMeters,lowLight,wind,exposed});
   const dropperFly=dropperFlyAdvice({fishType,lowLight,cloud,wind,exposed});
   const speciesReason = fishType === 'makrell' ? 'Makrell: søk i frie vannmasser og rundt strøm, odder eller stimer av småfisk' : fishType === 'sei' ? 'Sei: prioriter strøm, bratte kanter og vann med litt dybde' : fishType === 'orret' ? 'Ferskvannsørret: fisk langs vannkanter, odder, innløp og vindpåvirkede bredder' : fishType === 'abbor' ? 'Abbor: søk langs struktur, sivkanter, odder og lune bukter' : fishType === 'gjedde' ? 'Gjedde: prioriter grunne bukter, vegetasjon og kanter mot dypere vann' : null;
-  return { name:primary.name, type, weight, color:primary.color, image:primary.image, inventoryNote:primary.inventoryNote, ownedPhoto:true, reason: `${speciesReason ? `${speciesReason}; ` : ''}${timeReason}; ${tackleReason}.`, depth, wobbler, alternatives, genericCombinations, researchedChoice, presentation, dropperFly };
+  return { name:primary.name, type, weight, color:primary.color, image:primary.image, inventoryNote:primary.inventoryNote, ownedPhoto:true, waterEnvironment, reason: `${speciesReason ? `${speciesReason}; ` : ''}${timeReason}; ${tackleReason}.`, depth, wobbler, alternatives, genericCombinations, researchedChoice, presentation, dropperFly };
 }
 
 function formatReason({ breakdown = {}, weather = {}, coastQuality = 0.5, exposure = 0.5, waterType = 'saltwater' } = {}) {

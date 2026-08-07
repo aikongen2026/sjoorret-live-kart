@@ -1,6 +1,6 @@
-const CACHE = 'fiste-guiden-rev10-owned-lure-catalog-18-0';
+const CACHE = 'fiste-guiden-rev11-water-environment-19-0';
 const SHELL = [
-  '/', '/index.html', '/style.css?v=18.0', '/fishing-insights.js?v=18.0', '/app.js?v=18.0', '/manifest.webmanifest?v=18.0', '/icon.svg',
+  '/', '/index.html', '/style.css?v=19.0', '/fishing-insights.js?v=19.0', '/app.js?v=19.0', '/manifest.webmanifest?v=19.0', '/icon.svg',
   '/data/kirkoy-seatrout-spots.json', '/data/fishing-restrictions-2024.json', '/data/source-backed-lures.json', '/data/user-lures.json',
   '/lures/spoon-light-silver.jpg', '/lures/spoon-warm-copper.jpg', '/lures/spoon-blue-silver.jpg', '/lures/spoon-compact-spotted.jpg',
   '/lures/blue-silver-shallow.jpg', '/lures/black-silver-diving.jpg', '/lures/gold-orange-lowlight.jpg', '/lures/trout-natural.jpg',

@@ -1,4 +1,4 @@
-# Fiste guiden – REV 10
+# Fiste guiden – REV 11
 
 Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
 
@@ -37,6 +37,8 @@ REV 08 la til ett eksternt kildekontrollert valg i hvert sonekort. Modellens dok
 REV 09 utvider katalogen til tolv kildekontrollerte modeller med Sølvkroken BRIS, Morild Inline, Spesial Classic med UV og URO. Hvert modellkort lenker nå både produsentens dokumentasjon og en separat fag-/artskilde: NJFF for sjøørret, ørret, abbor og gjedde, og Havforskningsinstituttet for makrell og sei. NJFF-lenkene presenteres som erfaringsbaserte sportsfiskeråd og HI-lenkene som artsbiologi – ingen av dem fremstilles som kontrollert dokumentasjon på fangsteffekt.
 
 REV 10 krever i tillegg en gyldig norsk produktside for alle eksterne sekundærvalg og merker dem som **«Vanlig alternativ i Norge · sekundærvalg»**. Katalogen har elleve modeller: Abu Garcia Toby, Droppen og Atom, Rapala CountDown, Savage Gear Cannibal Shad og Sandeel samt Sølvkroken BRIS, Morild Inline, Spesial Classic med UV, URO og Stingsilda. Atom Vass og X-Rap Long Cast ble fjernet fordi de eksakte modellene ikke ble funnet i de kontrollerte norske butikkatalogene 7. august 2026. Stingsilda ble lagt til med dokumentasjon fra Sølvkroken og norsk produktside hos Jaktia. Norske forhandlerlenker er kontrollert hos Jaktia, Skitt Fiske og Magasinet.
+
+REV 11 gjør vannmiljøet synlig på hvert eget bildevalg. API-et returnerer `waterEnvironment` med `saltwater` eller `freshwater`, norsk merkelapp, miljøspesifikk/allround-klassifisering, klassifiseringsgrunnlag og miljøtilpasset forbehold. Egne bilder klassifiseres konservativt etter synlig agntype, form og farge; ukjent modell, vekt, krokfinish eller rustbeskyttelse behandles ikke som produsentdokumentasjon. Saltvannskort minner derfor om skylling og kontroll av krok/splittring, mens ferskvannskort minner om fiskekort og lokale regler. Artsfilteret avviser fortsatt bildegrupper som ikke er tagget for riktig vannmiljø.
 
 ## Beste tidspunkt i dag
 
