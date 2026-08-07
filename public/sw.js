@@ -1,15 +1,14 @@
-const CACHE = 'fiste-guiden-rev09-norwegian-source-lures-17-0';
+const CACHE = 'fiste-guiden-rev10-owned-lure-catalog-18-0';
 const SHELL = [
-  '/', '/index.html', '/style.css?v=17.0', '/fishing-insights.js?v=17.0', '/app.js?v=17.0', '/manifest.webmanifest?v=17.0', '/icon.svg',
-  '/data/kirkoy-seatrout-spots.json', '/data/fishing-restrictions-2024.json', '/data/source-backed-lures.json',
+  '/', '/index.html', '/style.css?v=18.0', '/fishing-insights.js?v=18.0', '/app.js?v=18.0', '/manifest.webmanifest?v=18.0', '/icon.svg',
+  '/data/kirkoy-seatrout-spots.json', '/data/fishing-restrictions-2024.json', '/data/source-backed-lures.json', '/data/user-lures.json',
   '/lures/spoon-light-silver.jpg', '/lures/spoon-warm-copper.jpg', '/lures/spoon-blue-silver.jpg', '/lures/spoon-compact-spotted.jpg',
   '/lures/blue-silver-shallow.jpg', '/lures/black-silver-diving.jpg', '/lures/gold-orange-lowlight.jpg', '/lures/trout-natural.jpg',
-  '/lures/user/a01-silver-scale-spoon.jpg', '/lures/user/a02-gold-stripe-caster.jpg', '/lures/user/a06-blue-spotted-stickbait.jpg',
-  '/lures/user/a10-white-turquoise-20g.jpg', '/lures/user/a11-black-silver-spoon.jpg', '/lures/user/a12-copper-red-spoon.jpg',
-  '/lures/user/b12-pink-silver-slim.jpg', '/lures/user/b13-gold-scale-dressed.jpg', '/lures/user/c03-pink-black-bars.jpg',
-  '/lures/user/c08-silver-dark-bars.jpg', '/lures/user/c09-blue-pink-slim.jpg', '/lures/user/c10-copper-speckled-micro.jpg',
-  '/lures/user/c11-gold-speckled-pencil.jpg', '/lures/user/c12-blue-striped-spoon.jpg', '/lures/user/c13-black-pink-minnow.jpg',
-  '/lures/user/c14-green-silver-pink-minnow.jpg', '/lures/user/c15-olive-gold-orange-minnow.jpg', '/lures/user/c16-black-silver-minnow.jpg',
+  '/lures/user/01-natural-minnow-wobblers.jpg', '/lures/user/02-bombarda-fly-set.jpg', '/lures/user/03-freshwater-spinners.jpg',
+  '/lures/user/04-crankbait-wobblers.jpg', '/lures/user/05-sea-metal-spoons.jpg', '/lures/user/06-flies-streamers.jpg',
+  '/lures/user/07-dressed-contrast-spoons.jpg', '/lures/user/08-small-freshwater-spoons.jpg', '/lures/user/09-micro-spoons.jpg',
+  '/lures/user/10-shad-spinnerbait.jpg', '/lures/user/11-mixed-allround-lures.jpg', '/lures/user/12-inline-spinners.jpg',
+  '/lures/user/13-red-gold-spoons.jpg', '/lures/user/14-spotted-trout-spoons.jpg',
   '/lures/generated/inline-spinner.svg', '/lures/generated/light-shad.svg', '/lures/generated/casting-jig.svg',
   '/lures/generated/herring-spoon.svg', '/lures/generated/heavy-shad.svg', '/lures/generated/blade-jig.svg',
   '/lures/generated/small-spinner.svg', '/lures/generated/micro-shad.svg', '/lures/generated/perch-shad.svg',

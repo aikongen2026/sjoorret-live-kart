@@ -1,4 +1,4 @@
-# Fiste guiden – REV 09
+# Fiste guiden – REV 10
 
 Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
 
@@ -26,13 +26,17 @@ Appen viser ikke EMODnet som innsjødybde. I ferskvannsmodus kan brukeren slå p
 
 Offisielle kilder: [Dybdekart på data.norge.no](https://data.norge.no/nb/datasets/a797219c-8378-3914-9bde-1ae4db09e370/dybdekart), [Innsjødatabase](https://data.norge.no/nb/datasets/e2635327-91fb-32fb-9257-0f1e008244fc/innsjodatabase) og [NVE WMS-dokumentasjon](https://api.nve.no/doc/web-map-service-wms/). Dataene er kildeangitt i kartet og publisert med NLOD-vilkår.
 
-Slukbildene viser brukerens eksisterende slukutvalg og fungerer som farge-/mønsterretning. Følg alltid anbefalt type, vekt og størrelse – spesielt ved gjeddefiske, der større agn ofte er riktig.
+REV 10 bruker 14 oppdaterte OneDrive-bilder av brukerens faktiske sluk, wobblere, spinnere, jigger, bombarda og fluer. Hvert bilderbrett er registrert i `public/data/user-lures.json` med kildefil, SHA-256, artsliste, vannmiljø, agntype, fargeprofil og usikkerhetsmerknad. Appen starter alltid med ett av disse fotograferte agnene. Anbefalt vekt er et situasjonsbasert startområde og må ikke tolkes som avlest vekt på et agn når merking ikke kan leses i bildet.
+
+Saltvannsartene sjøørret, makrell og sei filtreres mot saltvannstaggete bilder. Ferskvannsørret, abbor og gjedde filtreres separat mot ferskvannstaggete bilder før rangering. Enkelte allroundagn kan være dokumentert for begge miljøer, men poengmodellen prioriterer rene sjø- eller ferskvannsbrett når de passer forholdene.
 
 Hver sone viser i tillegg to generiske slukkombinasjoner utenfor det opplastede fotoutvalget, anbefalt slukhøyde i vannsøylen og arts-/forholdsbasert råd om opphengerflue, avstand og farge. De generiske kombinasjonene bruker lokale kopier av ekte Wikimedia Commons-referansefoto. Fotograf, lisens og kildelenke følger hvert bilde, og den maskinlesbare katalogen ligger i `public/lures/open/catalog.json`. Fotoet dokumenterer agntype/form; anbefalt størrelse, vekt og farge står i kortet og kan avvike fra eksemplaret på bildet. Slukhøyden er en praktisk startregel, ikke en målt fiskedybde. Kontroller fiskekort og lokale regler før bruk av ekstra krok eller agn.
 
-REV 08 legger til ett **kildekontrollert valg nå** i hvert sonekort. Katalogen dekker Abu Garcia Toby, Droppen, Atom og Atom Vass, Rapala CountDown og X-Rap Long Cast samt Savage Gear Cannibal Shad og Sandeel. Modellens dokumenterte størrelsesområde, virkemåte eller oppgitte arts-/miljøbruk er kontrollert mot produsentens produktside og lenkes direkte fra kortet. Appen velger deretter en forsiktig variant ut fra valgt art, dato og beregnet solhøyde for sonekoordinatet, MET-vind og nedbør, temperaturtrend, beregnet eksponering og tilgjengelig dybde. Denne vær-/stedsmatchen er en sportsfaglig tommelfingerregel, ikke dokumentert fangsteffekt eller fangstgaranti. Den maskinlesbare kildelisten ligger i `public/data/source-backed-lures.json`; bildene er tydelig merkede Wikimedia-referansefoto for sluktypen og er ikke nødvendigvis bilder av den navngitte modellen.
+REV 08 la til ett eksternt kildekontrollert valg i hvert sonekort. Modellens dokumenterte størrelsesområde, virkemåte eller oppgitte arts-/miljøbruk ble kontrollert mot produsentens produktside. Vær-/stedsmatchen er en sportsfaglig tommelfingerregel, ikke dokumentert fangsteffekt eller fangstgaranti. Den maskinlesbare kildelisten ligger i `public/data/source-backed-lures.json`; bildene er tydelig merkede Wikimedia-referansefoto for sluktypen og er ikke nødvendigvis bilder av den navngitte modellen.
 
 REV 09 utvider katalogen til tolv kildekontrollerte modeller med Sølvkroken BRIS, Morild Inline, Spesial Classic med UV og URO. Hvert modellkort lenker nå både produsentens dokumentasjon og en separat fag-/artskilde: NJFF for sjøørret, ørret, abbor og gjedde, og Havforskningsinstituttet for makrell og sei. NJFF-lenkene presenteres som erfaringsbaserte sportsfiskeråd og HI-lenkene som artsbiologi – ingen av dem fremstilles som kontrollert dokumentasjon på fangsteffekt.
+
+REV 10 krever i tillegg en gyldig norsk produktside for alle eksterne sekundærvalg og merker dem som **«Vanlig alternativ i Norge · sekundærvalg»**. Katalogen har elleve modeller: Abu Garcia Toby, Droppen og Atom, Rapala CountDown, Savage Gear Cannibal Shad og Sandeel samt Sølvkroken BRIS, Morild Inline, Spesial Classic med UV, URO og Stingsilda. Atom Vass og X-Rap Long Cast ble fjernet fordi de eksakte modellene ikke ble funnet i de kontrollerte norske butikkatalogene 7. august 2026. Stingsilda ble lagt til med dokumentasjon fra Sølvkroken og norsk produktside hos Jaktia. Norske forhandlerlenker er kontrollert hos Jaktia, Skitt Fiske og Magasinet.
 
 ## Beste tidspunkt i dag
 
