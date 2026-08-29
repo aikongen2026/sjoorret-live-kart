@@ -70,7 +70,8 @@ test('health keeps the v11 API version and static shell advertises Fiste guiden'
   t.after(() => server.close());
   const port = server.address().port;
   const health = await fetch(`http://127.0.0.1:${port}/api/health`).then(r => r.json());
-  assert.deepEqual(health,{ok:true,version:'v11-rev05-ferskvann',revision:'REV 11'});
+  const expectedRevision=`REV ${String(require('../package.json').appRevision).padStart(2,'0')}`;
+  assert.deepEqual(health,{ok:true,version:'v11-rev05-ferskvann',revision:expectedRevision});
   const html = await fetch(`http://127.0.0.1:${port}/`).then(r => r.text());
   assert.match(html, /Fiste guiden/);
   assert.match(html, /offline/i);
@@ -141,9 +142,10 @@ test('revision helper increments the single app revision and formats two digits'
   assert.equal(revision.formatRevision(6),'REV 06');
   const pkg=JSON.parse(fs.readFileSync(path.join(__dirname,'..','package.json'),'utf8'));
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
-  assert.equal(pkg.appRevision,11);
+  const expectedRevision=`REV ${String(pkg.appRevision).padStart(2,'0')}`;
+  assert.equal(pkg.appRevision,12);
   assert.match(pkg.scripts['revision:next'],/bump-revision/);
-  assert.match(html,/id="revisionBadge">REV 11<\/span>/);
+  assert.match(html,new RegExp(`id="revisionBadge">${expectedRevision}<\\/span>`));
 
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'fiste-revision-'));
   fs.mkdirSync(path.join(root,'public'));
@@ -464,7 +466,8 @@ test('app name is Fiste guiden in the page and install manifest', () => {
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const manifest=JSON.parse(fs.readFileSync(path.join(__dirname,'..','public','manifest.webmanifest'),'utf8'));
   assert.match(html,/<title>Fiste guiden<\/title>/);
-  assert.match(html,/<h1>Fiste guiden <span id="revisionBadge">REV 11<\/span><\/h1>/);
+  const revision=`REV ${String(require('../package.json').appRevision).padStart(2,'0')}`;
+  assert.match(html,new RegExp(`<h1>Fiste guiden <span id="revisionBadge">${revision}<\\/span><\\/h1>`));
   assert.equal(manifest.name,'Fiste guiden');
   assert.equal(manifest.short_name,'Fiste guiden');
 });
@@ -724,7 +727,7 @@ test('REV 04A UI explains scoring, numbers zones, and keeps popup compact', () =
   assert.match(html, /id="analysisSources"/);
   assert.match(js, /zone-number/);
   assert.match(js, /data-quality/);
-  assert.match(html, /REV 11/);
+  assert.match(html, new RegExp(`REV ${String(require('../package.json').appRevision).padStart(2,'0')}`));
   assert.match(js, /popup-details/);
   assert.match(js, /Fiskeforhold/);
   assert.match(js, /Datagrunnlag/);
@@ -879,4 +882,17 @@ test('lightweight OSM fallback converts named water bounds and preserves fishing
   const closed=app.parseNominatimWater({category:'water',type:'reservoir',name:'Maridalsvannet',boundingbox:['59.96','60.0','10.75','10.80'],extratags:{fishing:'no',access:'no'}});
   assert.equal(closed.restricted,true);
   assert.equal(app.parseNominatimWater({category:null,type:null,boundingbox:null}),null);
+});
+
+test('freshwater candidate geometry uses the verified lake polygon instead of sea-map pixel colours', () => {
+  const areas=app.parseFreshwaterAreas({elements:[{type:'way',id:14,tags:{name:'Innlandsjø'},geometry:[
+    {lat:60,lon:10},{lat:60,lon:10.1},{lat:60.1,lon:10.1},{lat:60.1,lon:10},{lat:60,lon:10}
+  ]}]});
+  const area=app.freshwaterAtPoint(60.05,10.05,areas);
+  const coast=app.freshwaterCoastInfo(60.05,10.05,area);
+  assert.ok(coast);
+  assert.equal(typeof coast.tangent,'number');
+  assert.equal(typeof coast.coastNormal,'number');
+  assert.equal(app.polygonMostlyInFreshwater([[60.049,10.049],[60.049,10.051],[60.051,10.051],[60.051,10.049]],area),true);
+  assert.equal(app.polygonMostlyInFreshwater([[60.049,10.049],[60.049,10.051],[60.12,10.051]],area),false);
 });

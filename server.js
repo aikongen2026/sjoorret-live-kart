@@ -585,8 +585,36 @@ function parseFreshwaterAreas(json={}) {
   return areas;
 }
 function freshwaterAtPoint(lat,lon,areas=[]) {
-  for(const area of areas) if(pointInPolygon(lat,lon,area.ring)) return {name:area.name,restricted:area.restricted,tags:area.tags,id:area.id};
+  for(const area of areas) if(pointInPolygon(lat,lon,area.ring)) return area;
   return null;
+}
+
+function freshwaterCoastInfo(lat,lon,area) {
+  const ring=area?.ring;
+  if(!Array.isArray(ring)||ring.length<4) return null;
+  let best=null;
+  for(let i=0;i<ring.length-1;i++) {
+    const a=ring[i], b=ring[i+1];
+    const midLat=(a.lat+b.lat)/2;
+    const lonScale=Math.cos(midLat*Math.PI/180);
+    const ax=a.lon*lonScale, ay=a.lat, bx=b.lon*lonScale, by=b.lat;
+    const px=lon*lonScale, py=lat;
+    const dx=bx-ax, dy=by-ay, length2=dx*dx+dy*dy;
+    if(length2===0) continue;
+    const t=clamp(((px-ax)*dx+(py-ay)*dy)/length2,0,1);
+    const nx=ax+dx*t, ny=ay+dy*t;
+    const distance2=(px-nx)*(px-nx)+(py-ny)*(py-ny);
+    if(!best||distance2<best.distance2) best={dx,dy,distance2};
+  }
+  if(!best) return null;
+  const tangent=Math.atan2(best.dy,best.dx);
+  const coastNormal=((tangent-Math.PI/2)*180/Math.PI+360)%360;
+  return {tangent,coastNormal,landCount:1,quality:0.72};
+}
+
+function polygonMostlyInFreshwater(poly,area) {
+  if(!area?.ring||!Array.isArray(poly)||!poly.length) return false;
+  return poly.every(([lat,lon])=>pointInPolygon(lat,lon,area.ring));
 }
 function postFormText(url,form,timeoutMs=14000) {
   return new Promise((resolve,reject)=>{
@@ -864,11 +892,13 @@ async function generateZones({west,south,east,north,zoom}, currentWeather, selec
     if (zones.length>=MAX_ZONE_COUNT) break; tested++;
     try {
       if(!freshwater&&isNearOfficialNoFishingZone(point.lat,point.lon)){restrictedWaters++;rejected++;continue;}
-      const coast=await nearCoastInfo(point.lat,point.lon,width,height,zoom); if(!coast){rejected++;continue;}
       const freshwaterArea=freshwater?freshwaterAtPoint(point.lat,point.lon,freshwaterAreas):null;
       if(freshwater&&!freshwaterArea){rejected++;continue;}
       if(freshwaterArea?.restricted){restrictedWaters++;rejected++;continue;}
-      const polygon=makeRibbon(point.lat,point.lon,coast.tangent,width*0.045,width*0.0055); if(!(await polygonMostlyWater(polygon,zoom))){rejected++;continue;}
+      const coast=freshwater?freshwaterCoastInfo(point.lat,point.lon,freshwaterArea):await nearCoastInfo(point.lat,point.lon,width,height,zoom); if(!coast){rejected++;continue;}
+      const polygon=makeRibbon(point.lat,point.lon,coast.tangent,width*0.045,width*0.0055);
+      const waterConfirmed=freshwater?polygonMostlyInFreshwater(polygon,freshwaterArea):await polygonMostlyWater(polygon,zoom);
+      if(!waterConfirmed){rejected++;continue;}
       const exposure=windExposure(currentWeather?.windDirection,coast.coastNormal); const hour=norwegianHour(); const scoring=computeScore({...currentWeather,coastQuality:coast.quality,exposure,hour,fishType});
       zones.push({id:`zone-${zones.length+1}-${Math.round(point.lat*10000)}-${Math.round(point.lon*10000)}`,score:scoring.score,name:scoring.score>=82?'Svært høy':scoring.score>=68?'Høy':'Moderat',breakdown:scoring.breakdown,polygon,_point:point,_coast:coast,_exposure:exposure,_hour:hour,_freshwaterName:freshwaterArea?.name||null});
     } catch(error) { maskError=error.message; rejected++; if(tested>12&&!zones.length) break; }
@@ -916,4 +946,4 @@ function createServer() {
 }
 function startServer(port=PORT) { const server=createServer(); return server.listen(port,()=>{ let ip='localhost'; for(const list of Object.values(os.networkInterfaces())) for(const item of list||[]) if(item.family==='IPv4'&&!item.internal) ip=item.address; console.log(`Fiste guiden kjører på http://${ip}:${port}`); }); }
 if(require.main===module) startServer();
-module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,isFreshwaterFish,isNearOfficialNoFishingZone,parseFreshwaterAreas,freshwaterAtPoint,parseNominatimWater,fetchNominatimWater,fetchFreshwaterAreas,bestFishingTimes,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};
+module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,isFreshwaterFish,isNearOfficialNoFishingZone,parseFreshwaterAreas,freshwaterAtPoint,freshwaterCoastInfo,polygonMostlyInFreshwater,parseNominatimWater,fetchNominatimWater,fetchFreshwaterAreas,bestFishingTimes,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};
