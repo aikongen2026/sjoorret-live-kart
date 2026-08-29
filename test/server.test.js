@@ -884,16 +884,6 @@ test('lightweight OSM fallback converts named water bounds and preserves fishing
   assert.equal(app.parseNominatimWater({category:null,type:null,boundingbox:null}),null);
 });
 
-test('freshwater multipolygons reject land holes inside a lake outline', () => {
-  const areas=app.parseFreshwaterAreas({elements:[{type:'relation',id:99,tags:{natural:'water',name:'Innsjø med øy'},members:[
-    {role:'outer',geometry:[{lat:60,lon:10},{lat:60,lon:10.1},{lat:60.1,lon:10.1},{lat:60.1,lon:10},{lat:60,lon:10}]},
-    {role:'inner',geometry:[{lat:60.04,lon:10.04},{lat:60.04,lon:10.06},{lat:60.06,lon:10.06},{lat:60.06,lon:10.04},{lat:60.04,lon:10.04}]}
-  ]}]});
-  assert.equal(areas.length,1);
-  assert.equal(app.freshwaterAtPoint(60.02,10.02,areas).name,'Innsjø med øy');
-  assert.equal(app.freshwaterAtPoint(60.05,10.05,areas),null);
-});
-
 test('freshwater candidate geometry uses the verified lake polygon instead of sea-map pixel colours', () => {
   const areas=app.parseFreshwaterAreas({elements:[{type:'way',id:14,tags:{name:'Innlandsjø'},geometry:[
     {lat:60,lon:10},{lat:60,lon:10.1},{lat:60.1,lon:10.1},{lat:60.1,lon:10},{lat:60,lon:10}

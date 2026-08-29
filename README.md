@@ -1,4 +1,4 @@
-# Fiste guiden – REV 14
+# Fiste guiden – REV 15
 
 Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
 
