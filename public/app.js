@@ -1,6 +1,8 @@
 const map = L.map('map', { zoomControl: true }).setView([59.21, 10.93], 12);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-const seaChartLayer = L.tileLayer('https://opencache.statkart.no/gatekeeper/gk/gk.open_gmaps?layers=sjokartraster&zoom={z}&x={x}&y={y}', { opacity: .56, maxZoom: 18, attribution: 'Kartverket' }).addTo(map);
+const standardLayer=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+const satelliteLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri'});
+const hybridLabelsLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Labels © Esri'});
+const seaChartLayer = L.tileLayer('https://opencache.statkart.no/gatekeeper/gk/gk.open_gmaps?layers=sjokartraster&zoom={z}&x={x}&y={y}', { opacity: .56, maxZoom: 18, attribution: 'Kartverket sjøkart' });
 const nveDepthLayer = L.tileLayer.wms('https://kart.nve.no/enterprise/services/Innsjodatabase2/MapServer/WMSServer', { layers: 'DybdeKurve,DybdePunkt', format: 'image/png', transparent: true, version: '1.3.0', maxZoom: 18, attribution: 'Kilde: <a href="https://data.norge.no/nb/datasets/a797219c-8378-3914-9bde-1ae4db09e370/dybdekart" target="_blank" rel="noopener">NVE – Innsjødatabase/Dybdekart</a>' });
 
 const $ = id => document.getElementById(id);
@@ -185,13 +187,19 @@ function renderSources(weather,stats={}) {
   $('analysisSources').innerHTML=`<b>Værmodell:</b> ${weather?.source || 'MET Norway'} · ${modelTime}<br><b>Analyse:</b> ${analysisTime} · ${freshwater ? 'OSM-vannmaske · valgfritt NVE-dybdekart der NVE har publisert kurver/punkter; ingen innlandsdybde antas' : 'OSM-kystgeometri · EMODnet-dybde der tilgjengelig'}`;
 }
 
+function applyMapStyle() {
+  const style=$('mapStyle').value;
+  const freshwater=freshwaterFishTypes.has($('fishType').value);
+  for(const layer of [standardLayer,satelliteLayer,hybridLabelsLayer,seaChartLayer]) if(map.hasLayer(layer)) map.removeLayer(layer);
+  if(style==='satellite'||style==='hybrid') satelliteLayer.addTo(map); else standardLayer.addTo(map);
+  if(style==='hybrid') hybridLabelsLayer.addTo(map);
+  if(style==='fishing'&&!freshwater) seaChartLayer.addTo(map);
+}
+
 function updateWaterModeUI() {
   const fishType=$('fishType').value;
   const hasSelection=Object.hasOwn(fishLabels,fishType);
   const freshwater=freshwaterFishTypes.has(fishType);
-  if (freshwater && map.hasLayer(seaChartLayer)) map.removeLayer(seaChartLayer);
-  if (hasSelection&&!freshwater && !map.hasLayer(seaChartLayer)) seaChartLayer.addTo(map);
-  if (!hasSelection&&map.hasLayer(seaChartLayer)) map.removeLayer(seaChartLayer);
   $('nveDepthToggle').hidden=!freshwater;
   if(!freshwater&&map.hasLayer(nveDepthLayer)) map.removeLayer(nveDepthLayer);
   if(!freshwater){$('nveDepthToggle').setAttribute('aria-pressed','false');$('nveDepthToggle').classList.remove('depth-active');}
@@ -199,6 +207,7 @@ function updateWaterModeUI() {
   $('restrictionToggle').hidden=!hasSelection||freshwater;
   $('analysisMode').textContent=!hasSelection?'Velg fisketype for analyse':freshwater ? 'Ferskvann · MET Norway · OSM' : 'Sjøanalyse · MET Norway · Kartverket';
   $('mask').textContent=!hasSelection?'Velg fisketype for å starte analysen.':freshwater ? 'Kontrollerer innsjø/elv og vannkant …' : 'Kontrollerer sjø og kyst …';
+  applyMapStyle();
   renderReferenceLayers();
   return freshwater;
 }
@@ -360,6 +369,7 @@ map.on('dragend zoomend', () => loadZones());
 $('locate').addEventListener('click', () => { setState('locating','Finner posisjonen din …'); map.locate({ setView:true, maxZoom:14, enableHighAccuracy:true }); });
 $('retry').addEventListener('click', () => loadZones({immediate:true}));
 $('fishType').addEventListener('change', () => { $('catchFish').value=$('fishType').value; renderFishingInsights(); updateWaterModeUI(); loadZones({immediate:true}); });
+$('mapStyle').addEventListener('change', applyMapStyle);
 $('sourceSpotToggle').addEventListener('click',()=>{showSourceSpots=!showSourceSpots;$('sourceSpotToggle').setAttribute('aria-pressed',String(showSourceSpots));$('sourceSpotToggle').classList.toggle('layer-active',showSourceSpots);$('sourceSpotToggle').textContent=showSourceSpots?'Kirkøy-steder':'Vis Kirkøy-steder';renderReferenceLayers();});
 $('restrictionToggle').addEventListener('click',()=>{showRestrictions=!showRestrictions;$('restrictionToggle').setAttribute('aria-pressed',String(showRestrictions));$('restrictionToggle').classList.toggle('restriction-active',showRestrictions);$('restrictionToggle').textContent=showRestrictions?'Fredningsgrenser':'Vis fredningsgrenser';renderReferenceLayers();});
 $('nveDepthToggle').addEventListener('click',()=>{const enable=!map.hasLayer(nveDepthLayer);if(enable)nveDepthLayer.addTo(map);else map.removeLayer(nveDepthLayer);$('nveDepthToggle').setAttribute('aria-pressed',String(enable));$('nveDepthToggle').classList.toggle('depth-active',enable);$('nveDepthToggle').textContent=enable?'Skjul NVE-dybde':'NVE dybdekart';});
