@@ -2,7 +2,8 @@ const map = L.map('map', { zoomControl: true }).setView([59.21, 10.93], 12);
 const standardLayer=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 const satelliteLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri'});
 const hybridLabelsLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Labels © Esri'});
-const seaChartLayer = L.tileLayer('https://opencache.statkart.no/gatekeeper/gk/gk.open_gmaps?layers=sjokartraster&zoom={z}&x={x}&y={y}', { opacity: .56, maxZoom: 18, attribution: 'Kartverket sjøkart' });
+const seaChartLayer = L.tileLayer('https://opencache.statkart.no/gatekeeper/gk/gk.open_gmaps?layers=sjokartraster&zoom={z}&x={x}&y={y}', { opacity: .93, maxZoom: 18, attribution: 'Kartverket sjøkart – dybder, grunner og skjær' });
+const marineDepthLayer=L.tileLayer.wms('https://ows.emodnet-bathymetry.eu/ows',{layers:'emodnet:mean',format:'image/png',transparent:false,version:'1.3.0',opacity:.9,maxZoom:18,attribution:'EMODnet Bathymetry – modellert marint dybdekart'});
 const nveDepthLayer = L.tileLayer.wms('https://kart.nve.no/enterprise/services/Innsjodatabase2/MapServer/WMSServer', { layers: 'DybdeKurve,DybdePunkt', format: 'image/png', transparent: true, version: '1.3.0', maxZoom: 18, attribution: 'Kilde: <a href="https://data.norge.no/nb/datasets/a797219c-8378-3914-9bde-1ae4db09e370/dybdekart" target="_blank" rel="noopener">NVE – Innsjødatabase/Dybdekart</a>' });
 
 const $ = id => document.getElementById(id);
@@ -190,17 +191,18 @@ function renderSources(weather,stats={}) {
 function applyMapStyle() {
   const style=$('mapStyle').value;
   const freshwater=freshwaterFishTypes.has($('fishType').value);
-  for(const layer of [standardLayer,satelliteLayer,hybridLabelsLayer,seaChartLayer]) if(map.hasLayer(layer)) map.removeLayer(layer);
-  if(style==='satellite'||style==='hybrid') satelliteLayer.addTo(map); else standardLayer.addTo(map);
+  for(const layer of [standardLayer,satelliteLayer,hybridLabelsLayer,seaChartLayer,marineDepthLayer]) if(map.hasLayer(layer)) map.removeLayer(layer);
+  if(style==='marine-depth'&&!freshwater) marineDepthLayer.addTo(map);
+  else if(style==='fishing'&&!freshwater) seaChartLayer.addTo(map);
+  else if(style==='satellite'||style==='hybrid') satelliteLayer.addTo(map); else standardLayer.addTo(map);
   if(style==='hybrid') hybridLabelsLayer.addTo(map);
-  if(style==='fishing'&&!freshwater) seaChartLayer.addTo(map);
 }
 
 function updateWaterModeUI() {
   const fishType=$('fishType').value;
   const hasSelection=Object.hasOwn(fishLabels,fishType);
   const freshwater=freshwaterFishTypes.has(fishType);
-  if(freshwater&&$('mapStyle').value==='fishing') $('mapStyle').value='standard';
+  if(freshwater&&['fishing','marine-depth'].includes($('mapStyle').value)) $('mapStyle').value='standard';
   $('nveDepthToggle').hidden=!freshwater;
   if(!freshwater&&map.hasLayer(nveDepthLayer)) map.removeLayer(nveDepthLayer);
   if(!freshwater){$('nveDepthToggle').setAttribute('aria-pressed','false');$('nveDepthToggle').classList.remove('depth-active');}

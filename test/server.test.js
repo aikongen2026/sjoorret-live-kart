@@ -857,7 +857,8 @@ test('freshwater species are visible in the selector and switch off the sea char
   assert.match(js, /seaChartLayer/);
   assert.match(js, /freshwaterFishTypes/);
   assert.match(js, /style==='fishing'&&!freshwater/);
-  assert.match(js, /for\(const layer of \[standardLayer,satelliteLayer,hybridLabelsLayer,seaChartLayer\]/);
+  assert.match(js, /for\(const layer of \[standardLayer,satelliteLayer,hybridLabelsLayer,seaChartLayer,marineDepthLayer\]/);
+  assert.match(js,/\['fishing','marine-depth'\]\.includes/);
 });
 
 test('freshwater geometry rejects sea points and water marked no fishing', () => {
@@ -931,13 +932,18 @@ test('map labels use the validated water marker and app requires an explicit fis
   assert.match(js,/Object\.hasOwn\(fishLabels,\$\('fishType'\)\.value\)/);
 });
 
-test('map type picker exposes standard, satellite, hybrid and fishing layers', () => {
+test('map type picker exposes standard, satellite, hybrid, nautical chart and marine depth layers', () => {
   const root=path.join(__dirname,'..','public');
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
   const js=fs.readFileSync(path.join(root,'app.js'),'utf8');
-  for(const value of ['standard','satellite','hybrid','fishing']) assert.match(html,new RegExp(`<option value="${value}"`));
+  for(const value of ['standard','satellite','hybrid','fishing','marine-depth']) assert.match(html,new RegExp(`<option value="${value}"`));
+  assert.match(html,/Detaljert sjøkart – dybder og skjær/);
+  assert.match(html,/Marint dybdekart/);
   assert.match(js,/World_Imagery/);
   assert.match(js,/World_Boundaries_and_Places/);
+  assert.match(js,/emodnet:mean/);
   assert.match(js,/function applyMapStyle/);
+  assert.match(js,/style==='marine-depth'&&!freshwater/);
+  assert.match(js,/\['fishing','marine-depth'\]\.includes/);
   assert.match(js,/\$\('mapStyle'\)\.addEventListener\('change', applyMapStyle\)/);
 });
