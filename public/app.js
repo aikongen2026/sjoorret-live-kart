@@ -303,10 +303,11 @@ function renderZones(zones) {
   }
   $('zones').innerHTML = zones.map((zone,index) => `<article class="zone-row" tabindex="0" data-zone="${zone.id}"><div class="zone-rank">${index+1}</div><div class="zone-copy"><div class="zone-title"><b>Sone ${index+1} · ${zone.name}</b></div><p>${zone.reason}</p><div class="score-explanation"><span>Fiskeforhold ${zone.score}/100</span><div>${breakdownHtml(zone.breakdown)}</div></div>${dataQualityHtml(zone.dataQuality)}</div>${lureHtml(zone.lure)}<div class="score" data-score="${zone.score}" aria-label="Fiskeforhold ${zone.score} av 100, ikke fangstsannsynlighet" style="--score:${zone.score};--score-color:${scoreColor(zone.score)}"></div></article>`).join('');
   zones.forEach((zone,index) => {
-    const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 })
-      .bindPopup(compactPopupHtml(zone,index),{maxWidth:330,className:'compact-leaflet-popup'});
     const marker=L.circleMarker([zone.marker.lat,zone.marker.lon],{radius:5,color:'#10251f',weight:2,fillColor:scoreColor(zone.score),fillOpacity:1,opacity:1})
       .bindTooltip(String(index+1),{permanent:true,direction:'center',className:'zone-number'});
+    const layer=Array.isArray(zone.polygon)&&zone.polygon.length>=3
+      ?L.polygon(zone.polygon,{color:scoreColor(zone.score),weight:2,fillColor:scoreColor(zone.score),fillOpacity:.34,opacity:.96}).bindPopup(compactPopupHtml(zone,index),{maxWidth:330,className:'compact-leaflet-popup'})
+      :L.circleMarker([zone.marker.lat,zone.marker.lon],{radius:15,color:scoreColor(zone.score),weight:2,fillColor:scoreColor(zone.score),fillOpacity:.16,opacity:.96}).bindPopup(compactPopupHtml(zone,index),{maxWidth:330,className:'compact-leaflet-popup'});
     layer._zoneId=zone.id;
     marker._zoneId=zone.id;
     layer.on('click',()=>selectZone(zone.id,{scroll:true}));

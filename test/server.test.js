@@ -897,6 +897,15 @@ test('freshwater candidate geometry uses the verified lake polygon instead of se
   assert.equal(app.polygonMostlyInFreshwater([[60.049,10.049],[60.049,10.051],[60.12,10.051]],area),false);
 });
 
+test('freshwater candidate generator samples inside a narrow registered water surface', () => {
+  const areas=app.parseFreshwaterAreas({elements:[{type:'way',id:77,tags:{name:'Smalt vann'},geometry:[
+    {lat:60,lon:10.490},{lat:60,lon:10.510},{lat:60.100,lon:10.510},{lat:60.100,lon:10.490},{lat:60,lon:10.490}
+  ]}]});
+  const candidates=app.freshwaterCandidateGrid(areas,{west:10,south:60,east:11,north:61});
+  assert.ok(candidates.length>0);
+  assert.ok(candidates.every(point=>app.freshwaterAtPoint(point.lat,point.lon,areas)?.name==='Smalt vann'));
+});
+
 test('map labels use the validated water marker and app requires an explicit fish selection', () => {
   const root=path.join(__dirname,'..','public');
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
