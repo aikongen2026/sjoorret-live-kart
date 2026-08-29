@@ -907,6 +907,21 @@ test('freshwater candidate generator samples inside a narrow registered water su
   assert.ok(candidates.every(point=>app.freshwaterAtPoint(point.lat,point.lon,areas)?.name==='Smalt vann'));
 });
 
+test('freshwater multipolygons reject land holes inside a lake outline', () => {
+  const areas=app.parseFreshwaterAreas({elements:[{type:'relation',id:99,tags:{natural:'water',name:'Innsjø med øy'},members:[
+    {role:'outer',geometry:[{lat:60,lon:10},{lat:60,lon:10.2},{lat:60.2,lon:10.2},{lat:60.2,lon:10},{lat:60,lon:10}]},
+    {role:'inner',geometry:[{lat:60.07,lon:10.07},{lat:60.07,lon:10.13},{lat:60.13,lon:10.13},{lat:60.13,lon:10.07},{lat:60.07,lon:10.07}]}
+  ]}]});
+  assert.equal(areas.length,1);
+  assert.equal(areas[0].holes.length,1);
+  assert.ok(app.freshwaterAtPoint(60.03,10.03,areas));
+  assert.equal(app.freshwaterAtPoint(60.10,10.10,areas),null);
+  assert.equal(app.polygonMostlyInFreshwater([[60.03,10.03],[60.03,10.04],[60.04,10.04]],areas[0]),true);
+  assert.equal(app.polygonMostlyInFreshwater([[60.03,10.03],[60.10,10.10],[60.04,10.04]],areas[0]),false);
+  const candidates=app.freshwaterCandidateGrid(areas,{west:10,south:60,east:10.2,north:60.2});
+  assert.equal(candidates.some(point=>point.lat>60.07&&point.lat<60.13&&point.lon>10.07&&point.lon<10.13),false);
+});
+
 test('map labels use the validated water marker and app requires an explicit fish selection', () => {
   const root=path.join(__dirname,'..','public');
   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');

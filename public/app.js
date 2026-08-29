@@ -200,6 +200,7 @@ function updateWaterModeUI() {
   const fishType=$('fishType').value;
   const hasSelection=Object.hasOwn(fishLabels,fishType);
   const freshwater=freshwaterFishTypes.has(fishType);
+  if(freshwater&&$('mapStyle').value==='fishing') $('mapStyle').value='standard';
   $('nveDepthToggle').hidden=!freshwater;
   if(!freshwater&&map.hasLayer(nveDepthLayer)) map.removeLayer(nveDepthLayer);
   if(!freshwater){$('nveDepthToggle').setAttribute('aria-pressed','false');$('nveDepthToggle').classList.remove('depth-active');}
