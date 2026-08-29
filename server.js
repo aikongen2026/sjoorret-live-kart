@@ -905,7 +905,7 @@ async function generateZones({west,south,east,north,zoom}, currentWeather, selec
       const waterConfirmed=freshwater?polygonMostlyInFreshwater(polygon,freshwaterArea):await polygonMostlyWater(polygon,zoom);
       if(!waterConfirmed){rejected++;continue;}
       const exposure=windExposure(currentWeather?.windDirection,coast.coastNormal); const hour=norwegianHour(); const scoring=computeScore({...currentWeather,coastQuality:coast.quality,exposure,hour,fishType});
-      zones.push({id:`zone-${zones.length+1}-${Math.round(point.lat*10000)}-${Math.round(point.lon*10000)}`,score:scoring.score,name:scoring.score>=82?'Svært høy':scoring.score>=68?'Høy':'Moderat',breakdown:scoring.breakdown,polygon,_point:point,_coast:coast,_exposure:exposure,_hour:hour,_freshwaterName:freshwaterArea?.name||null});
+      zones.push({id:`zone-${zones.length+1}-${Math.round(point.lat*10000)}-${Math.round(point.lon*10000)}`,score:scoring.score,name:scoring.score>=82?'Svært høy':scoring.score>=68?'Høy':'Moderat',breakdown:scoring.breakdown,polygon,marker:{lat:point.lat,lon:point.lon},_point:point,_coast:coast,_exposure:exposure,_hour:hour,_freshwaterName:freshwaterArea?.name||null});
     } catch(error) { maskError=error.message; rejected++; if(tested>12&&!zones.length) break; }
   }
   await Promise.all(zones.map(async zone => {

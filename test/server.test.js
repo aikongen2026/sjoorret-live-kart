@@ -906,3 +906,12 @@ test('freshwater candidate geometry uses the verified lake polygon instead of se
   assert.equal(app.polygonMostlyInFreshwater([[60.049,10.049],[60.049,10.051],[60.051,10.051],[60.051,10.049]],area),true);
   assert.equal(app.polygonMostlyInFreshwater([[60.049,10.049],[60.049,10.051],[60.12,10.051]],area),false);
 });
+
+test('map labels use the validated water marker and app requires an explicit fish selection', () => {
+  const root=path.join(__dirname,'..','public');
+  const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+  const js=fs.readFileSync(path.join(root,'app.js'),'utf8');
+  assert.match(html,/<option value="" selected disabled>Velg fisketype<\/option>/);
+  assert.match(js,/L\.circleMarker\(\[zone\.marker\.lat,zone\.marker\.lon\]/);
+  assert.match(js,/Object\.hasOwn\(fishLabels,\$\('fishType'\)\.value\)/);
+});

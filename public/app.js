@@ -186,16 +186,19 @@ function renderSources(weather,stats={}) {
 }
 
 function updateWaterModeUI() {
-  const freshwater=freshwaterFishTypes.has($('fishType').value);
+  const fishType=$('fishType').value;
+  const hasSelection=Object.hasOwn(fishLabels,fishType);
+  const freshwater=freshwaterFishTypes.has(fishType);
   if (freshwater && map.hasLayer(seaChartLayer)) map.removeLayer(seaChartLayer);
-  if (!freshwater && !map.hasLayer(seaChartLayer)) seaChartLayer.addTo(map);
+  if (hasSelection&&!freshwater && !map.hasLayer(seaChartLayer)) seaChartLayer.addTo(map);
+  if (!hasSelection&&map.hasLayer(seaChartLayer)) map.removeLayer(seaChartLayer);
   $('nveDepthToggle').hidden=!freshwater;
   if(!freshwater&&map.hasLayer(nveDepthLayer)) map.removeLayer(nveDepthLayer);
   if(!freshwater){$('nveDepthToggle').setAttribute('aria-pressed','false');$('nveDepthToggle').classList.remove('depth-active');}
-  $('sourceSpotToggle').hidden=$('fishType').value!=='sjoorret';
-  $('restrictionToggle').hidden=freshwater;
-  $('analysisMode').textContent=freshwater ? 'Ferskvann · MET Norway · OSM' : 'Sjøanalyse · MET Norway · Kartverket';
-  $('mask').textContent=freshwater ? 'Kontrollerer innsjø/elv og vannkant …' : 'Kontrollerer sjø og kyst …';
+  $('sourceSpotToggle').hidden=fishType!=='sjoorret';
+  $('restrictionToggle').hidden=!hasSelection||freshwater;
+  $('analysisMode').textContent=!hasSelection?'Velg fisketype for analyse':freshwater ? 'Ferskvann · MET Norway · OSM' : 'Sjøanalyse · MET Norway · Kartverket';
+  $('mask').textContent=!hasSelection?'Velg fisketype for å starte analysen.':freshwater ? 'Kontrollerer innsjø/elv og vannkant …' : 'Kontrollerer sjø og kyst …';
   renderReferenceLayers();
   return freshwater;
 }
@@ -301,11 +304,15 @@ function renderZones(zones) {
   $('zones').innerHTML = zones.map((zone,index) => `<article class="zone-row" tabindex="0" data-zone="${zone.id}"><div class="zone-rank">${index+1}</div><div class="zone-copy"><div class="zone-title"><b>Sone ${index+1} · ${zone.name}</b></div><p>${zone.reason}</p><div class="score-explanation"><span>Fiskeforhold ${zone.score}/100</span><div>${breakdownHtml(zone.breakdown)}</div></div>${dataQualityHtml(zone.dataQuality)}</div>${lureHtml(zone.lure)}<div class="score" data-score="${zone.score}" aria-label="Fiskeforhold ${zone.score} av 100, ikke fangstsannsynlighet" style="--score:${zone.score};--score-color:${scoreColor(zone.score)}"></div></article>`).join('');
   zones.forEach((zone,index) => {
     const layer = L.polygon(zone.polygon, { color:scoreColor(zone.score), weight:2, fillColor:scoreColor(zone.score), fillOpacity:.34, opacity:.96 })
-      .bindTooltip(String(index+1),{permanent:true,direction:'center',className:'zone-number'})
       .bindPopup(compactPopupHtml(zone,index),{maxWidth:330,className:'compact-leaflet-popup'});
+    const marker=L.circleMarker([zone.marker.lat,zone.marker.lon],{radius:5,color:'#10251f',weight:2,fillColor:scoreColor(zone.score),fillOpacity:1,opacity:1})
+      .bindTooltip(String(index+1),{permanent:true,direction:'center',className:'zone-number'});
     layer._zoneId=zone.id;
+    marker._zoneId=zone.id;
     layer.on('click',()=>selectZone(zone.id,{scroll:true}));
+    marker.on('click',()=>{selectZone(zone.id,{scroll:true});layer.openPopup();});
     layer.addTo(zoneLayer);
+    marker.addTo(zoneLayer);
     const row = document.querySelector(`[data-zone="${zone.id}"]`);
     const open=()=>{ selectZone(zone.id); map.fitBounds(layer.getBounds(), { maxZoom:16, padding:[30,30] }); layer.openPopup(); };
     row?.addEventListener('click', open);
@@ -313,6 +320,13 @@ function renderZones(zones) {
   });
 }
 async function loadZones({ immediate=false }={}) {
+  if(!Object.hasOwn(fishLabels,$('fishType').value)) {
+    clearTimeout(timer); controller?.abort(); zoneLayer.clearLayers();
+    $('zones').innerHTML='<div class="empty"><b>Velg fisketype</b><span>Velg art i nedtrekksmenyen for å starte kartanalysen.</span></div>';
+    $('mask').textContent='Velg fisketype for å starte analysen.';
+    setState('ready','Velg fisketype for å starte.');
+    return;
+  }
   clearTimeout(timer);
   timer = setTimeout(async () => {
     controller?.abort(); controller = new AbortController();
