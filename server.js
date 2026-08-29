@@ -569,23 +569,28 @@ function stitchWaterRings(rawSegments=[]) {
 }
 function parseFreshwaterAreas(json={}) {
   const areas=[];
-  const add=(ring,tags={},id='')=>{
+  const add=(ring,tags={},id='',holes=[])=>{
     if(!Array.isArray(ring)||ring.length<4||!sameCoordinate(ring[0],ring[ring.length-1])) return;
     const restricted=String(tags.fishing||'').toLowerCase()==='no'||['no','private'].includes(String(tags.access||'').toLowerCase());
-    areas.push({ring,name:tags.name||'Navnløst vann',restricted,tags,id});
+    areas.push({ring,holes:holes.filter(hole=>Array.isArray(hole)&&hole.length>=4&&sameCoordinate(hole[0],hole[hole.length-1])),name:tags.name||'Navnløst vann',restricted,tags,id});
   };
   for(const element of json.elements||[]) {
     const tags=element.tags||{};
     if(element.type==='way') add((element.geometry||[]).map(point=>({lat:Number(point.lat),lon:Number(point.lon)})),tags,`way/${element.id}`);
     if(element.type==='relation') {
-      const segments=(element.members||[]).filter(member=>(member.role||'outer')==='outer').map(member=>member.geometry||[]);
-      for(const ring of stitchWaterRings(segments)) add(ring,tags,`relation/${element.id}`);
+      const byRole=role=>(element.members||[]).filter(member=>(member.role||'outer')===role).map(member=>member.geometry||[]);
+      const outers=stitchWaterRings(byRole('outer'));
+      const holes=stitchWaterRings(byRole('inner'));
+      for(const ring of outers) add(ring,tags,`relation/${element.id}`,holes.filter(hole=>pointInPolygon(hole[0].lat,hole[0].lon,ring)));
     }
   }
   return areas;
 }
+function pointIsInFreshwaterArea(lat,lon,area) {
+  return Boolean(area&&pointInPolygon(lat,lon,area.ring)&&!(area.holes||[]).some(hole=>pointInPolygon(lat,lon,hole)));
+}
 function freshwaterAtPoint(lat,lon,areas=[]) {
-  for(const area of areas) if(pointInPolygon(lat,lon,area.ring)) return area;
+  for(const area of areas) if(pointIsInFreshwaterArea(lat,lon,area)) return area;
   return null;
 }
 
@@ -614,7 +619,7 @@ function freshwaterCoastInfo(lat,lon,area) {
 
 function polygonMostlyInFreshwater(poly,area) {
   if(!area?.ring||!Array.isArray(poly)||!poly.length) return false;
-  return poly.every(([lat,lon])=>pointInPolygon(lat,lon,area.ring));
+  return poly.every(([lat,lon])=>pointIsInFreshwaterArea(lat,lon,area));
 }
 function postFormText(url,form,timeoutMs=14000) {
   return new Promise((resolve,reject)=>{
@@ -946,4 +951,4 @@ function createServer() {
 }
 function startServer(port=PORT) { const server=createServer(); return server.listen(port,()=>{ let ip='localhost'; for(const list of Object.values(os.networkInterfaces())) for(const item of list||[]) if(item.family==='IPv4'&&!item.internal) ip=item.address; console.log(`Fiste guiden kjører på http://${ip}:${port}`); }); }
 if(require.main===module) startServer();
-module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,isFreshwaterFish,isNearOfficialNoFishingZone,parseFreshwaterAreas,freshwaterAtPoint,freshwaterCoastInfo,polygonMostlyInFreshwater,parseNominatimWater,fetchNominatimWater,fetchFreshwaterAreas,bestFishingTimes,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};
+module.exports={computeScore,validateZoneRequest,createBoundedCache,windExposure,formatReason,recommendLure,lureCatalog,parseDepthFeatureInfo,depthAtPoint,norwegianHour,buildDataQuality,normalizeFishType,isFreshwaterFish,isNearOfficialNoFishingZone,parseFreshwaterAreas,freshwaterAtPoint,pointIsInFreshwaterArea,freshwaterCoastInfo,polygonMostlyInFreshwater,parseNominatimWater,fetchNominatimWater,fetchFreshwaterAreas,bestFishingTimes,MAX_ZONE_COUNT,MAX_ZONE_CANDIDATES,FISH_TYPES,createServer,startServer,weather,generateZones};
