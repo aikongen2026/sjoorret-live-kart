@@ -167,9 +167,9 @@ test('default map starts in Fredrikstad when location is unavailable', () => {
   assert.match(appJs, /setView\(\[59\.21,\s*10\.93\],\s*12\)/);
   assert.doesNotMatch(appJs, /setView\(\[59\.05,\s*10\.05\]/);
   assert.match(appJs, /locationerror[^\n]+Kunne ikke hente posisjonen/);
-  assert.match(html, /fishing-insights\.js\?v=19\.0/);
-  assert.match(html, /app\.js\?v=19\.0/);
-  assert.match(sw, /rev11-water-environment-19-0/);
+  assert.match(html, /fishing-insights\.js\?v=20\.0/);
+  assert.match(html, /app\.js\?v=20\.0/);
+  assert.match(sw, /rev20-direct-fishing-20-0/);
 });
 
 test('passive map resize cannot trigger a repeating zone reload', () => {
@@ -287,7 +287,7 @@ test('catch log and best-time UI are local-first, escaped, and present in the PW
   assert.match(html,/id="catchEntries"/);
   assert.match(html,/id="speciesGuide"/);
   assert.match(html,/id="catchInsights"/);
-  assert.ok(html.indexOf('fishing-insights.js')<html.indexOf('app.js?v=19.0'));
+  assert.ok(html.indexOf('fishing-insights.js')<html.indexOf('app.js?v=20.0'));
   assert.match(appJs,/fiste-guiden-catch-log-v1/);
   assert.match(appJs,/localStorage\.getItem/);
   assert.match(appJs,/localStorage\.setItem/);

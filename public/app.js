@@ -8,6 +8,7 @@ const nveDepthLayer = L.tileLayer.wms('https://kart.nve.no/enterprise/services/I
 
 const $ = id => document.getElementById(id);
 const zoneLayer = L.layerGroup().addTo(map);
+const navigationLayer = L.layerGroup().addTo(map);
 const sourceSpotLayer = L.layerGroup().addTo(map);
 const restrictionLayer = L.layerGroup().addTo(map);
 const mapContainerObserver = new ResizeObserver(() => map.invalidateSize({ pan: false }));
@@ -16,7 +17,10 @@ window.addEventListener('load', () => setTimeout(() => map.invalidateSize({ pan:
 let timer;
 let controller;
 let locationMarker;
-const labels = { vind:'Vind', skydekke:'Skydekke', kyst:'Kyst', vannkant:'Vannkant', eksponering:'Eksponering', temperatur:'Temperatur', lufttemperatur:'Lufttemperatur', tidspunkt:'Tidspunkt', dybde:'Dybde' };
+let baseMarker;
+let basePoint=null;
+let latestZones=[];
+const labels = { vind:'Vind', skydekke:'Skydekke', kyst:'Kyst', vannkant:'Vannkant', eksponering:'Eksponering', temperatur:'Temperatur', lufttemperatur:'Lufttemperatur', tidspunkt:'Tidspunkt', dybde:'Dybde', storfisk:'Stor fisk' };
 const freshwaterFishTypes = new Set(['orret','abbor','gjedde']);
 const catchStorageKey='fiste-guiden-catch-log-v1';
 const fishLabels={sjoorret:'Sjøørret',makrell:'Makrell',sei:'Sei',orret:'Ørret (ferskvann)',abbor:'Abbor',gjedde:'Gjedde'};
@@ -35,6 +39,40 @@ function openLureViewer(src, caption='Anbefalt sluk') {
   lureViewerCaption.textContent = caption;
   if (typeof lureViewer.showModal === 'function') lureViewer.showModal();
   else lureViewer.setAttribute('open', '');
+}
+
+
+function formatDistance(m){ if(!Number.isFinite(m)) return 'Avstand ikke satt'; return m<1000?`${Math.round(m)} m`:`${(m/1000).toFixed(1).replace('.',',')} km`; }
+function setBasePoint(latlng,{label='Base'}={}){
+  basePoint={lat:Number(latlng.lat),lon:Number(latlng.lng)};
+  if(baseMarker) baseMarker.remove();
+  baseMarker=L.marker([basePoint.lat,basePoint.lon],{title:label}).addTo(map).bindPopup(`<b>${escapeHtml(label)}</b><br>Startpunkt for avstandsfilter`);
+  $('setBase').textContent='✓ Base satt';
+  loadZones({immediate:true});
+}
+function drawNavigation(zones=[]){
+  navigationLayer.clearLayers();
+  if(!zones.length) return;
+  const best=zones[0];
+  if(basePoint&&Number.isFinite(best.distanceM)){
+    L.polyline([[basePoint.lat,basePoint.lon],[best.marker.lat,best.marker.lon]],{color:'#38d477',weight:4,dashArray:'8 8',opacity:.9}).addTo(navigationLayer);
+  }
+  zones.slice(0,3).forEach((zone,index)=>{
+    if(!Number.isFinite(zone.castBearing)) return;
+    const length=index===0?85:55, rad=zone.castBearing*Math.PI/180;
+    const dLat=(Math.sin(rad)*length)/110540;
+    const dLon=(Math.cos(rad)*length)/(111320*Math.cos(zone.marker.lat*Math.PI/180));
+    L.polyline([[zone.marker.lat,zone.marker.lon],[zone.marker.lat+dLat,zone.marker.lon+dLon]],{color:index===0?'#ff9f1c':'#f2c94c',weight:index===0?5:3,opacity:.95}).bindTooltip(index===0?'Kast langs kanten':'Kastretning',{permanent:false}).addTo(navigationLayer);
+  });
+}
+function renderBestNow(zones=[]){
+  const holder=$('bestNow');
+  $('goalBadge').textContent=$('fishGoal').value==='big'?'STOR FISK':'Mest fisk';
+  if(!zones.length){ holder.innerHTML='<p class="muted">Ingen anbefalt sone innen valgt utsnitt/avstand. Øk radius eller flytt kartet litt.</p>'; return; }
+  const zone=zones[0], lure=zone.lure||{}, w=lure.wobbler||{};
+  const big=$('fishGoal').value==='big';
+  holder.innerHTML=`<div class="best-now-grid"><div class="best-now-score"><strong>${zone.score}</strong><span>/100</span></div><div><span class="best-now-kicker">${big?'🏆 STOR FISK':'🎯 BEST MATCH'} · ${escapeHtml(fishLabels[$('fishType').value]||'')}</span><h3>${escapeHtml(zone.waterName||zone.name)}</h3><p>${escapeHtml(zone.reason||'')}</p></div></div><div class="best-now-facts"><article><span>Avstand fra base</span><b>${formatDistance(zone.distanceM)}</b></article><article><span>Bruk nå</span><b>${escapeHtml(lure.type||'Anbefalt agn')} · ${escapeHtml(lure.weight||'')}</b></article><article><span>Alternativ</span><b>${escapeHtml(w.type||'Wobbler')} · ${escapeHtml(w.size||'')}</b></article></div><div class="best-now-actions"><button type="button" id="goBest">VIS PÅ KART</button><span>Orange linje = praktisk kastretning langs vannkanten.</span></div>`;
+  $('goBest')?.addEventListener('click',()=>{ map.setView([zone.marker.lat,zone.marker.lon],Math.max(map.getZoom(),16)); selectZone(zone.id,{scroll:true}); });
 }
 
 function scoreColor(score) { return score >= 82 ? '#38d477' : score >= 68 ? '#b8df45' : '#f2c94c'; }
@@ -308,7 +346,10 @@ function selectZone(zoneId,{scroll=false}={}) {
   if (scroll) row?.scrollIntoView({behavior:'smooth',block:'center'});
 }
 function renderZones(zones) {
+  latestZones=zones;
   zoneLayer.clearLayers();
+  renderBestNow(zones);
+  drawNavigation(zones);
   if (!zones.length) {
     $('zones').innerHTML = '<div class="empty"><b>Ingen sikre soner i utsnittet</b><span>Zoom nærmere kysten eller flytt kartet litt.</span></div>';
     return;
@@ -351,6 +392,9 @@ async function loadZones({ immediate=false }={}) {
     try {
       const searchParams = new URLSearchParams({ bbox, zoom:String(map.getZoom()) });
       searchParams.set('fish', $('fishType').value);
+      searchParams.set('goal',$('fishGoal').value);
+      const radius=Number($('baseRadius').value)||0;
+      if(basePoint){searchParams.set('baseLat',String(basePoint.lat));searchParams.set('baseLon',String(basePoint.lon));if(radius)searchParams.set('radiusM',String(radius));}
       const response = await fetch(`/api/zones?${searchParams}`, { cache:'no-store', signal:controller.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || `API-feil ${response.status}`);
@@ -372,6 +416,9 @@ map.on('dragend zoomend', () => loadZones());
 $('locate').addEventListener('click', () => { setState('locating','Finner posisjonen din …'); map.locate({ setView:true, maxZoom:14, enableHighAccuracy:true }); });
 $('retry').addEventListener('click', () => loadZones({immediate:true}));
 $('fishType').addEventListener('change', () => { $('catchFish').value=$('fishType').value; renderFishingInsights(); updateWaterModeUI(); loadZones({immediate:true}); });
+$('fishGoal').addEventListener('change',()=>loadZones({immediate:true}));
+$('baseRadius').addEventListener('change',()=>loadZones({immediate:true}));
+$('setBase').addEventListener('click',()=>setBasePoint(map.getCenter(),{label:'Valgt base'}));
 $('mapStyle').addEventListener('change', applyMapStyle);
 $('sourceSpotToggle').addEventListener('click',()=>{showSourceSpots=!showSourceSpots;$('sourceSpotToggle').setAttribute('aria-pressed',String(showSourceSpots));$('sourceSpotToggle').classList.toggle('layer-active',showSourceSpots);$('sourceSpotToggle').textContent=showSourceSpots?'Kirkøy-steder':'Vis Kirkøy-steder';renderReferenceLayers();});
 $('restrictionToggle').addEventListener('click',()=>{showRestrictions=!showRestrictions;$('restrictionToggle').setAttribute('aria-pressed',String(showRestrictions));$('restrictionToggle').classList.toggle('restriction-active',showRestrictions);$('restrictionToggle').textContent=showRestrictions?'Fredningsgrenser':'Vis fredningsgrenser';renderReferenceLayers();});
@@ -381,11 +428,11 @@ lureViewer.addEventListener('click', event => { if (event.target === lureViewer)
 document.addEventListener('click', event => { const image=event.target.closest?.('.zoomable-lure'); if (!image) return; event.preventDefault(); event.stopPropagation(); openLureViewer(image.currentSrc || image.src, image.alt); }, true);
 document.addEventListener('click', event => { const button=event.target.closest?.('.popup-details'); if(!button) return; event.preventDefault(); const zoneId=button.dataset.zone; map.closePopup(); selectZone(zoneId,{scroll:true}); });
 document.addEventListener('keydown', event => { const image=event.target.closest?.('.zoomable-lure'); if (image && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openLureViewer(image.currentSrc || image.src, image.alt); } });
-map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); locationMarker=L.circleMarker(event.latlng,{radius:7,color:'#fff',weight:2,fillColor:'#38d477',fillOpacity:1}).addTo(map).bindPopup('Din posisjon').openPopup(); setState('ready','Posisjon funnet. Oppdaterer soner …'); loadZones({immediate:true}); });
+map.on('locationfound', event => { if (locationMarker) locationMarker.remove(); locationMarker=L.circleMarker(event.latlng,{radius:7,color:'#fff',weight:2,fillColor:'#38d477',fillOpacity:1}).addTo(map).bindPopup('Din posisjon').openPopup(); basePoint={lat:event.latlng.lat,lon:event.latlng.lng}; if(baseMarker) baseMarker.remove(); baseMarker=L.marker(event.latlng).addTo(map).bindPopup('<b>Base: din posisjon</b>'); $('setBase').textContent='✓ Base = GPS'; setState('ready','Posisjon funnet. Bruker den som base og oppdaterer soner …'); loadZones({immediate:true}); });
 map.on('locationerror', () => setState('error','Kunne ikke hente posisjonen. Tillat posisjon eller flytt kartet manuelt.'));
 window.addEventListener('online', () => loadZones({immediate:true}));
 window.addEventListener('offline', () => setState('error','Du er offline. Kartskallet virker, men nye analyser krever nett.'));
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=19.0', { updateViaCache: 'none' }).catch(() => {}));
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js?v=20.0', { updateViaCache: 'none' }).catch(() => {}));
 initCatchLog();
 updateWaterModeUI();
 loadReferenceLayers();

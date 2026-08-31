@@ -1,6 +1,18 @@
-# Fiste guiden – REV 19
+# Fiste guiden – REV 20
 
 Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
+
+## REV 20 – Beste plass nå og STOR FISK
+
+REV 20 gjør appen mer direkte ute ved vannet:
+
+- **Beste plass akkurat nå** vises som eget hovedkort med score, agn og rask kartknapp.
+- **STOR FISK-modus** prioriterer tydelig vannkant/struktur og gir større gjeddeagn når gjedde er valgt.
+- **Base + maks avstand** lar deg begrense forslag til 250 m, 500 m, 1 km eller 2 km fra GPS-posisjon eller valgt kartbase.
+- **Korteste praktiske retning** vises med stiplet grønn linje fra base til beste sone.
+- **Kastretning** vises med orange/gule linjer langs vannkanten for de tre beste sonene.
+- API-et støtter nå `goal`, `baseLat`, `baseLon` og `radiusM` på `/api/zones`.
+- PWA-cache og ressursversjoner er oppdatert til REV 20.
 
 ## Arter
 
