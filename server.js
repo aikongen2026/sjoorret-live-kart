@@ -266,20 +266,17 @@ function selectPhotographedLures({ fishType='sjoorret', hour, cloud, wind, temp,
     if (depthMeters !== null && depthMeters > 12) score += (has('pencil') ? 3 : 0) + (has('minnow') ? 2 : 0) + (has('compact') ? 2 : 0);
     if (isFreshwaterFish(fishType)&&has('freshwater-specialist')) score += 8;
     if (!isFreshwaterFish(fishType)&&has('saltwater-specialist')) score += 8;
-    if (fishType === 'sjoorret') score += (has('spoon') ? 8 : 0) + (has('sea-metal') ? 7 : 0) + (has('minnow') ? 4 : 0) + (has('bombarda')&&sheltered ? 6 : 0);
-    if (fishType === 'makrell') score += (has('sea-metal') ? 11 : 0) + (has('silver') ? 7 : 0) + (has('blue') ? 5 : 0) + (has('casting') ? 6 : 0) + (has('compact') ? 5 : 0);
-    if (fishType === 'sei') score += (has('sea-metal') ? 10 : 0) + (has('shad') ? 7 : 0) + (has('silver') ? 6 : 0) + (has('blue') ? 4 : 0) + (has('contrast') ? 5 : 0) + (has('deep') ? 5 : 0);
-    if (fishType === 'orret') score += (has('spinner') ? 8 : 0) + (has('spoon') ? 7 : 0) + (has('wobbler') ? 5 : 0) + (has('natural') ? 5 : 0) + (has('warm') && lowLight ? 4 : 0) + (has('micro') ? 3 : 0);
-    if (fishType === 'abbor') score += (has('shad') ? 9 : 0) + (has('spinner') ? 8 : 0) + (has('crankbait') ? 8 : 0) + (has('compact') ? 7 : 0) + (has('micro') ? 6 : 0) + (has('contrast') ? 5 : 0);
-    if (fishType === 'gjedde') score += (has('spinnerbait') ? 12 : 0) + (has('shad') ? 10 : 0) + (has('wobbler') ? 7 : 0) + (has('broad') ? 8 : 0) + (has('contrast') ? 6 : 0) + (has('warm') ? 4 : 0);
+    if (fishType === 'sjoorret') score += (has('spoon') ? 8 : 0) + (has('sea-metal') ? 7 : 0) + (has('minnow') ? 4 : 0) + (has('bombarda')&&sheltered ? 6 : 0) + (item.id==='own14' && (lowLight||cloud>=55) ? 12 : 0) + (item.id==='own05' && bright ? 10 : 0);
+    if (fishType === 'makrell') score += (has('sea-metal') ? 11 : 0) + (has('silver') ? 7 : 0) + (has('blue') ? 5 : 0) + (has('casting') ? 6 : 0) + (has('compact') ? 5 : 0) + (item.id==='own05' ? 18 : 0);
+    if (fishType === 'sei') score += (has('sea-metal') ? 10 : 0) + (has('shad') ? 7 : 0) + (has('silver') ? 6 : 0) + (has('blue') ? 4 : 0) + (has('contrast') ? 5 : 0) + (has('deep') ? 5 : 0) + (item.id==='own11' ? 20 : 0);
+    if (fishType === 'orret') score += (has('spinner') ? 8 : 0) + (has('spoon') ? 7 : 0) + (has('wobbler') ? 5 : 0) + (has('natural') ? 5 : 0) + (has('warm') && lowLight ? 4 : 0) + (has('micro') ? 3 : 0) + (item.id==='own14' && (lowLight||cloud>=50) ? 12 : 0) + (item.id==='own03' && bright ? 10 : 0);
+    if (fishType === 'abbor') score += (has('shad') ? 9 : 0) + (has('spinner') ? 8 : 0) + (has('crankbait') ? 8 : 0) + (has('compact') ? 7 : 0) + (has('micro') ? 6 : 0) + (has('contrast') ? 5 : 0) + (item.id==='own10' && cloud>=60 ? 12 : 0) + (item.id==='own12' && cloud<60 ? 10 : 0);
+    if (fishType === 'gjedde') score += (has('spinnerbait') ? 12 : 0) + (has('shad') ? 10 : 0) + (has('wobbler') ? 7 : 0) + (has('broad') ? 8 : 0) + (has('contrast') ? 6 : 0) + (has('warm') ? 4 : 0) + (item.id==='own10' ? 22 : 0);
     const tie = (stableLureNumber(`${signature}|${item.id}`) % 300) / 100;
     return { item, score, tie };
   }).sort((a,b) => b.score-a.score || b.tie-a.tie || a.item.id.localeCompare(b.item.id));
-  const bestPrimary = scored[0];
-  const primaryPool = scored.filter(({score}) => score >= bestPrimary.score - 2);
-  const primary = primaryPool[stableLureNumber(signature) % primaryPool.length].item;
-  const alternatives = scored.filter(({item}) => item.id !== primary.id).sort((a,b) => (b.score+b.tie)-(a.score+a.tie) || a.item.id.localeCompare(b.item.id)).slice(0,2).map(({item}) => item);
-  return [primary, ...alternatives];
+  const primary = scored[0].item;
+  return [primary];
 }
 
 function genericLureCombinations({fishType,lowLight,cloud,exposed}) {
@@ -466,7 +463,7 @@ function recommendLure(input = {}) {
     weight = goal==='big' ? '25–70 g' : '15–35 g';
   }
 
-  const [primary, ...alternateItems] = selectPhotographedLures({ fishType, hour, cloud, wind, temp, exposure, coastQuality, depthMeters, conservativeShallow, exposed, sheltered, lowLight });
+  const [primary] = selectPhotographedLures({ fishType, hour, cloud, wind, temp, exposure, coastQuality, depthMeters, conservativeShallow, exposed, sheltered, lowLight });
   type=`${type} · ${primary.family}`;
   const solarNote=Number.isFinite(lightProfile.elevation)?` (beregnet solhøyde ${lightProfile.elevation.toFixed(1)}°)`:'';
   const timeReason = lowLight ? `lavt lys${solarNote}` : cloud < 25 ? `klart dagslys${solarNote}` : `dempet dagslys${solarNote}`;
@@ -506,14 +503,14 @@ function recommendLure(input = {}) {
     basis:'Eget bilde er klassifisert etter synlig agntype, form og farge. Ukjent modell, vekt og krokfinish behandles ikke som produsentdokumentasjon.',
     caveat:freshwater?'Kontroller lokale regler, fiskekort og tillatt krokoppsett.':'Saltvannsegnet krok og rustbeskyttelse kan ikke bekreftes fra bildet; skyll agnet i ferskvann og kontroller krok og splittring etter bruk.'
   };
-  const alternatives = alternateItems.map(item => ({ name:item.name, type:item.family, weight:'Kontroller faktisk størrelse og vekt på agnet i bildet', color:item.color, image:item.image, inventoryNote:item.inventoryNote, environmentLabel, environmentClassification:item.waterTypes.length===1?'Miljøspesifikk':'Allround', reason:'Alternativt fotoagn fra din egen samling, klassifisert for samme art og vannmiljø.' }));
-  const genericCombinations=genericLureCombinations({fishType,lowLight,cloud,exposed});
-  const researchedChoice=sourceBackedLureChoice({fishType,hour,cloud,wind,temp,tempTrend,precipitation,exposed,depthMeters,lowLight});
+  const alternatives=[];
+  const genericCombinations=[];
+  const researchedChoice=null;
   const presentation=lurePresentationAdvice({fishType,depthMeters,lowLight,wind,exposed});
   const dropperFly=dropperFlyAdvice({fishType,lowLight,cloud,wind,exposed});
   const speciesReason = fishType === 'makrell' ? 'Makrell: søk i frie vannmasser og rundt strøm, odder eller stimer av småfisk' : fishType === 'sei' ? 'Sei: prioriter strøm, bratte kanter og vann med litt dybde' : fishType === 'orret' ? 'Ferskvannsørret: fisk langs vannkanter, odder, innløp og vindpåvirkede bredder' : fishType === 'abbor' ? 'Abbor: søk langs struktur, sivkanter, odder og lune bukter' : fishType === 'gjedde' ? 'Gjedde: prioriter grunne bukter, vegetasjon og kanter mot dypere vann' : null;
   const trophyNote=goal==='big'&&fishType==='gjedde'?' Stor-fisk-modus: fisk større agn sakte med tydelige pauser langs vegetasjon, odder og overgangen mot dypere vann.':'';
-  return { name:primary.name, type, weight, color:primary.color, image:primary.image, inventoryNote:primary.inventoryNote, ownedPhoto:true, waterEnvironment, reason: `${speciesReason ? `${speciesReason}; ` : ''}${timeReason}; ${tackleReason}.${trophyNote}`, depth, wobbler, alternatives, genericCombinations, researchedChoice, presentation, dropperFly };
+  return { name:primary.name, type, weight, color:primary.color, image:primary.image, inventoryNote:primary.inventoryNote, ownedPhoto:true, waterEnvironment, reason: `${speciesReason ? `${speciesReason}; ` : ''}${timeReason}; ${tackleReason}.${trophyNote}`, depth, wobbler:null, alternatives, genericCombinations, researchedChoice, presentation, dropperFly };
 }
 
 function formatReason({ breakdown = {}, weather = {}, coastQuality = 0.5, exposure = 0.5, waterType = 'saltwater' } = {}) {

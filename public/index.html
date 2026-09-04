@@ -6,23 +6,23 @@
   <meta name="theme-color" content="#061713">
   <meta name="description" content="Fiste guiden analyserer sjø, innsjøer, vannkanter og vær for sjøørret, makrell, sei, ferskvannsørret, abbor og gjedde.">
   <title>Fiste guiden</title>
-  <link rel="manifest" href="/manifest.webmanifest?v=20.0">
+  <link rel="manifest" href="/manifest.webmanifest?v=21.0">
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="/style.css?v=20.0">
+  <link rel="stylesheet" href="/style.css?v=21.0">
 </head>
 <body>
 <a class="skip" href="#results">Hopp til resultater</a>
 <div class="app" id="appState" data-state="loading">
   <header>
-    <div class="brand"><span class="eyebrow" id="analysisMode">Sjø og ferskvann · MET Norway · OSM</span><h1>Fiste guiden <span id="revisionBadge">REV 20</span></h1><p id="status" role="status" aria-live="polite">Starter analysen …</p></div>
+    <div class="brand"><span class="eyebrow" id="analysisMode">Sjø og ferskvann · MET Norway · OSM</span><h1>Fiste guiden <span id="revisionBadge">REV 21</span></h1><p id="status" role="status" aria-live="polite">Starter analysen …</p></div>
     <div class="actions"><label class="fish-picker"><span>Fisketype</span><select id="fishType" aria-label="Velg fisketype"><option value="" selected disabled>Velg fisketype</option><optgroup label="Sjø"><option value="sjoorret">Sjøørret</option><option value="makrell">Makrell</option><option value="sei">Sei</option></optgroup><optgroup label="Ferskvann"><option value="orret">Ørret (ferskvann)</option><option value="abbor">Abbor</option><option value="gjedde">Gjedde</option></optgroup></select></label><label class="fish-picker"><span>Mål</span><select id="fishGoal" aria-label="Velg fiskemål"><option value="numbers">Mest fisk</option><option value="big">STOR FISK</option></select></label><label class="fish-picker"><span>Maks avstand</span><select id="baseRadius" aria-label="Maks avstand fra base"><option value="0">Ingen grense</option><option value="250">250 m</option><option value="500" selected>500 m</option><option value="1000">1 km</option><option value="2000">2 km</option></select></label><button id="setBase" class="secondary" type="button" title="Bruk kartets sentrum som startsted">⌖ Sett base</button><label class="fish-picker"><span>Karttype</span><select id="mapStyle" aria-label="Velg karttype"><option value="standard">Standardkart</option><option value="satellite">Satellittkart</option><option value="hybrid">Hybridkart</option><option value="fishing">Detaljert sjøkart – dybder og skjær</option><option value="marine-depth">Marint dybdekart</option></select></label><button id="retry" class="secondary" hidden>Prøv igjen</button><button id="sourceSpotToggle" class="secondary layer-active" type="button" aria-pressed="true" title="Omtrentlige områder omtalt av Rosareke; ikke fangstgaranti">Kirkøy-steder</button><button id="restrictionToggle" class="secondary restriction-active" type="button" aria-pressed="true" title="Gjeldende koordinatfestede yttergrenser fra Lovdata">Fredningsgrenser</button><button id="nveDepthToggle" class="secondary" type="button" aria-pressed="false" title="Viser bare innsjøer der NVE har publiserte dybdekurver eller dybdepunkter" hidden>NVE dybdekart</button><button id="locate">◎ Finn meg</button></div>
   </header>
   <main>
     <section class="map-wrap" aria-label="Kart over anbefalte fiskesoner"><div id="map"></div><div class="legend"><span><i class="best"></i> svært høy</span><span><i class="high"></i> høy</span><span><i class="moderate"></i> moderat</span><span><i class="source-spot"></i> historisk omtalt</span><span><i class="no-fishing"></i> helårsforbud</span></div></section>
     <aside id="results">
-      <section class="card mask-card"><div><span class="card-label">Vannmaske</span><b id="mask">Kontrollerer vann og vannkant …</b></div><span class="pulse" aria-hidden="true"></span></section><section class="card now-card" id="bestNowCard"><div class="card-head"><div><span class="card-label">REV 20 · gjør valget for deg</span><h2>🔥 Beste plass akkurat nå</h2></div><span class="source-dot" id="goalBadge">Mest fisk</span></div><div id="bestNow"><p class="muted">Velg art, så finner appen beste plass i kartutsnittet.</p></div></section>
+      <section class="card mask-card"><div><span class="card-label">Vannmaske</span><b id="mask">Kontrollerer vann og vannkant …</b></div><span class="pulse" aria-hidden="true"></span></section><section class="card now-card" id="bestNowCard"><div class="card-head"><div><span class="card-label">REV 21 · gjør valget for deg</span><h2>🔥 Beste plass akkurat nå</h2></div><span class="source-dot" id="goalBadge">Mest fisk</span></div><div id="bestNow"><p class="muted">Velg art, så finner appen beste plass i kartutsnittet.</p></div></section>
       <p id="warnings" class="warning" aria-live="polite"></p>
       <section class="card"><div class="card-head"><div><span class="card-label">Forhold nå</span><h2>Værmodell ved kartets sentrum</h2></div><span class="source-dot">Modell</span></div><div id="weatherGrid" class="weather-grid"><p class="muted span-all">Laster vær …</p></div><p id="analysisSources" class="source-details">Kilder og oppdateringstid lastes …</p></section>
       <section class="card best-times-card"><div class="card-head"><div><span class="card-label">Planlegg turen</span><h2>Beste tidspunkt i dag</h2></div><span class="source-dot">Prognose</span></div><div id="bestTimes" aria-live="polite"><p class="muted">Beregner dagens tidsvinduer …</p></div></section>
@@ -37,7 +37,7 @@
 <dialog id="lureViewer" aria-labelledby="lureViewerCaption"><button id="closeLureViewer" type="button" aria-label="Lukk forstørret slukbilde">×</button><img id="lureViewerImage" alt=""><p id="lureViewerCaption"></p></dialog>
 <noscript>Appen krever JavaScript for kart og analyse.</noscript>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/fishing-insights.js?v=20.0"></script>
-<script src="/app.js?v=20.0"></script>
+<script src="/fishing-insights.js?v=21.0"></script>
+<script src="/app.js?v=21.0"></script>
 </body>
 </html>

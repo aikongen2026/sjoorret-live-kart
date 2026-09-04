@@ -1,10 +1,10 @@
-# Fiste guiden – REV 20
+# Fiste guiden – REV 21
 
 Mobilklar PWA som foreslår fiskesoner i sjø og ferskvann i Norge.
 
-## REV 20 – Beste plass nå og STOR FISK
+## REV 21 – Beste plass nå og STOR FISK
 
-REV 20 gjør appen mer direkte ute ved vannet:
+REV 21 gjør appen mer direkte ute ved vannet:
 
 - **Beste plass akkurat nå** vises som eget hovedkort med score, agn og rask kartknapp.
 - **STOR FISK-modus** prioriterer tydelig vannkant/struktur og gir større gjeddeagn når gjedde er valgt.
@@ -12,7 +12,7 @@ REV 20 gjør appen mer direkte ute ved vannet:
 - **Korteste praktiske retning** vises med stiplet grønn linje fra base til beste sone.
 - **Kastretning** vises med orange/gule linjer langs vannkanten for de tre beste sonene.
 - API-et støtter nå `goal`, `baseLat`, `baseLon` og `radiusM` på `/api/zones`.
-- PWA-cache og ressursversjoner er oppdatert til REV 20.
+- PWA-cache og ressursversjoner er oppdatert til REV 21.
 
 ## Arter
 
@@ -91,3 +91,11 @@ npm start
 Kartutsnittet må ligge i Norge. Nye analyser krever nett; appskallet kan åpnes offline etter første besøk.
 
 Analysen er veiledende. Kontroller lokale fiskeregler, fiskekort, fredningsbestemmelser, vær og sikkerhet før fiske.
+
+## REV 21 – kart, mobiltilstand og kun egne sluker
+- Kartverkets utdaterte `opencache.statkart.no`-URL er erstattet med offisiell `cache.kartverket.no` WMTS for sjøkart.
+- EMODnet bruker dokumentert Bathymetry WMS `/wms` og `emodnet:mean_multicolour`, med standardkart under som sikker fallback.
+- Valgt art, mål, radius, karttype, kartposisjon, zoom og base lagres lokalt og gjenopprettes etter modal/bak-knapp/reload på mobil.
+- Slukmotoren kan kun velge fra brukerens `user-lures.json`. Eksterne referanseagn, generiske alternativer og stock-wobblere er deaktivert i anbefalingen.
+- Hvert anbefalt slukbilde er beskåret til ett konkret agn fra brukerens egne fotografier (`public/lures/single/`).
+- Artsvekting er skjerpet så ulike arter prioriterer relevante agn i samlingen i stedet for samme standardvalg.
